@@ -1,8 +1,7 @@
 ; ================================================
-; POPUP HOTKEYS v1.1
-; Written using AutoHotkey_L v1.1.09.03 (http://l.autohotkey.net/)
+; POPUP HOTKEYS v1.8
+; Written using AutoHotkey (http://www.AHKScript.org)
 ; By jlalonde on AHK forum
-; 2013-05-22
 
 ; ================================================
 ; FUNCTION
@@ -33,9 +32,9 @@
 
 global arrPopupHotkeysRequests := Array()
 global arrObjPopupHotkeys := Object()
-global intLaunchDelay := 30 ; WinWait delay; increase or decrease according to the time your largest program takes to load
+global intLaunchDelay := 30 ; WinWait delay - increase or decrease according to the time your largest program takes to load
 
-Menu, Tray, Icon, C:\Windows\System32\imageres.dll, 195, 1
+Menu, Tray, Icon, C:\Windows\System32\imageres.dll, 195, 1 ; ### replace with compile icon
 Menu, Tray, Add ; Add a menu separator
 Menu, Tray, Add, &List Popup programs, ListAllWindow ; Add a menu to the AHK tray icon to list show all windows
 Menu, Tray, Add, &Show all Popup programs, ShowAllWindow ; Add a menu to the AHK tray icon to show all windows
@@ -49,37 +48,59 @@ OnExit, ShowAllWindowAndExit ; Show all popup programs whenever this script is t
 ; ================================================
 ; For each program you wish to load, indicate two mandatory parameters and four optional parameters in a string using the | delimiter:
 ;
-; arrPopupHotkeysRequests.Insert("hotkey | executable_path | working_directory | no_preload | window_identifier | startup_function")
+; arrPopupHotkeysRequests.Insert("name | hotkey | executable_path | working_directory | no_preload | window_identifier | startup_function")
 ;
-; 1. hotkey: the hotkey defined using the AutoHotkey syntax (see http://www.autohotkey.com/docs/Hotkeys.htm), for example "#z"
+; 1. name: name of the hotkey, for UI usage only
+; 2. hotkey: the hotkey defined using the AutoHotkey syntax (see http://www.autohotkey.com/docs/Hotkeys.htm), for example "#z"
 ;   (Windows-Z) or "Numpad0" (zero on the numeric pad)
-; 2. excutable_path: the path to the executable file of the program to load, for example "C:\Windows\system32\notepad.exe"
-; 3. working_directory (optional): the full path to the initial working directory, for example "C:\MyData"
-; 4. no_preload (optional): if "1" the program is launched only at the fisrt activation of the hotkey
-; 5. window_identifier (required only for some program, see note below): window title, class name or other identifier of the
+; 3. excutable_path: the path to the executable file of the program to load, for example "C:\Windows\system32\notepad.exe"
+; 4. working_directory (optional): the full path to the initial working directory, for example "C:\MyData"
+; 5. no_preload (optional): if "1" the program is launched only at the fisrt activation of the hotkey
+; 6. window_identifier (required only for some program, see note below): window title, class name or other identifier of the
 ;    program's window, following the rules in http://l.autohotkey.net/docs/misc/WinTitle.htm, for example "ahk_class iTunes"
-; 6. startup_function (optional): AHK function to run at program startup (for example, to enter a password of initialize the
+; 7. startup_function (optional): AHK function to run at program startup (for example, to enter a password of initialize the
 ;    program - see PasswordAppStartup example)
 ;
-; Note about window identifiers (about #5 above):
+; Note about window identifiers (about #6 above):
 ; By default, this script identify programs by their process ID. Some program (like iTunes for Windows) do not respond consistently
 ; to this ID when managed by AutoHotkey. If you experience problems with a program that does not respond normally to its hotkey, try
 ; using one of these options: the program's title ("iTunes"), class name ("ahk_class iTunes"), unique ID ("ahk_id 0x40574") or
 ; process name ("ahk_exe iTunes.exe".) To find a program's title, class, etc., run the Window Spy utility included with AutoHotkey.
 ;
-; Here are three working examples (adapt exec paths to your environment if required):
+; Piece of code for developement phase only
+if (A_ComputerName = "JEAN-PC") ; my personal hotkeys
+	strDataFileName := "PopupHotkeys-MAISON.txt" ; ### get from ini file
+else if (A_ComputerName = "STIC") ; my work hotkeys
+	strDataFileName := "PopupHotkeys-STIC.txt" ; ### get from ini file
+else ; for other users
+	strDataFileName := "PopupHotkeys.txt" ; ### get from ini file
+; / Piece of code for developement phase only
+if !InStr(strDataFileName, "\") and !InStr(strDataFileName, "/")
+	strDataFileName := A_ScriptDir . "\" . strDataFileName
 
-arrPopupHotkeysRequests.Insert("#c | C:\Windows\system32\calc.exe | C:\")
-; Calc will be launched and hidden, with the root of C: drive as initial working directory; hit Windows-C to show or hide Calc.
+if !FileExist(strDataFileName)
+	FileAppend,
+	(LTrim
+		; Sample PopupHotkeys2 data
+		; -------------------------
 
-arrPopupHotkeysRequests.Insert("Numpad0 | C:\Windows\system32\notepad.exe | | | | SimpleStartupExample")
-; Notepad will be launched and the "SimpleStartupExample" function (at the bottom of this script) will be executed. Then, the window
-; will be hidden. Hit the Zero key on the numeric keypad to show or hide Notepad.
+		; Calc will be launched and hidden, with the root of C: drive as initial working directory; hit Windows-C to show or hide Calc.
+		Calc | #c | C:\Windows\system32\calc.exe | C:\
 
-arrPopupHotkeysRequests.Insert("RControl | C:\Program Files (x86)\iTunes\iTunes.exe | | 1 | ahk_class iTunes")
-; At the firt hit of the Rigfht Control key (at the right of the Space bar), iTunes will be launched and hidden; because of iTunes
-; process behaviour, it is safer to identify the program with its class name "iTunes"; hit the Right Control key again to show or
-; hide iTunes.
+		; Notepad will be launched and the "SimpleStartupExample" function (at the bottom of this script) will be executed. Then, the window will be hidden. Hit the Zero key on the numeric keypad to show or hide Notepad.
+		Notepad Startup | Numpad0 | C:\Windows\system32\notepad.exe | | | | SimpleStartupExample.ahk
+
+		; At the firt hit of the Rigfht Control key (at the right of the Space bar), iTunes will be launched and hidden; because of iTunes process behaviour, it is safer to identify the program with its class name "iTunes"; hit the Right Control key again to show or hide iTunes.
+		iTunes | RControl | C:\Program Files (x86)\iTunes\iTunes.exe | | 1 | ahk_class iTunes
+	
+	), %strDataFileName%
+Loop, Read, %strDataFileName%
+{
+	strDataLine := Trim(A_LoopReadLine)
+	if (StrLen(strDataLine) = 0) or (SubStr(strDataLine, 1, 1) = ";")
+		Continue
+	arrPopupHotkeysRequests.Insert(strDataLine)
+}
 
 ; The following commands will create the requested hotkeys display a result report if the CreatePopupHotkeys parameter is "true".
 blnWithReport := false ; "true" to get a hotkeys loading report or "false" for a quiet loading of hotkeys.
@@ -122,13 +143,14 @@ CreatePopupHotkeys(blnDisplayReport := true)
 	for intIndexNotUsed, strRequest in arrPopupHotkeysRequests
 	{
 		StringSplit arrRequest, strRequest, |
-		strKey := Trim(arrRequest1)
-		strExecPath := Trim(arrRequest2)
-		strWorkDir := Trim(arrRequest3)
-		blnPreload := Trim(arrRequest4) <> "1"
-		strAhkIdentifier := Trim(arrRequest5)
-		strStartup := Trim(arrRequest6)
-		strReport := strReport . "Creation of " . strKey . " -> "
+		strName := Trim(arrRequest1)
+		strKey := Trim(arrRequest2)
+		strExecPath := Trim(arrRequest3)
+		strWorkDir := Trim(arrRequest4)
+		blnPreload := Trim(arrRequest5) <> "1"
+		strAhkIdentifier := Trim(arrRequest6)
+		strStartup := Trim(arrRequest7)
+		strReport := strReport . "Creation of " . strName . "(" . strKey . ") -> "
 		if (blnPreload)
 		{
 			Run, %strExecPath%, %strWorkDir%, UseErrorLevel, intExecPID
@@ -158,8 +180,8 @@ CreatePopupHotkeys(blnDisplayReport := true)
 				strWindowID := strAhkIdentifier ; we use the user defined window identifier
 			else
 				strWindowID := "ahk_pid 9999999" ; the program was not preloaded, so we don't have a pid - create a dummy pid that will be replaced when hotky is pressed (no process should have id 9999999)
-		strPopKeyName := GetPopHotkeyName(strKey)
-		arrObjPopupHotkeys[strPopKeyName] := Object("KeyName", strPopKeyName, "KeyHotkey", strKey, "KeyExecPath", strExecPath, "KeyWorkDir", strWorkDir, "KeyWindowID", strWindowID, "KeyStartup", strStartup)
+		strPopKeyLabel := GetPopHotkeyLabel(strKey)
+		arrObjPopupHotkeys[strPopKeyLabel] := Object("KeyName", strName, "KeyLabel", strPopKeyLabel, "KeyHotkey", strKey, "KeyExecPath", strExecPath, "KeyWorkDir", strWorkDir, "KeyWindowID", strWindowID, "KeyStartup", strStartup)
 		Hotkey, %strKey%, PopupHotkey, UseErrorLevel ; http://www.autohotkey.com/docs/commands/Hotkey.htm
 		if (errorLevel)
 			strReport := strReport . "ERROR: " . arrHotkeyErrors[errorLevel] "`n"
@@ -184,19 +206,19 @@ PopupHotkey:
 ; hotkey is retrieved from the arrObjPopupHotkeys array. Then, one of these four scenario will
 ; be executed:
 ; 1) If the executable associated with this hotkey is visible and active, its window is hidden
-;    and the window that was active previously is re-activated.
+;    ??? and the window that was active previously is re-activated /???.
 ; 2) If the executable associated with this hotkey is inactive, it is activated.
 ; 3) If the executable associated with this hotkey is hidden, it is shown and activated.
 ; 4) Finaly, if the executable associated with this hotkey does not exist, it is loaded and
 ;    the startup function (if present) is executed.
 Critical ; Prevents the current thread from being interrupted by other threads.
-strKeyName := GetPopHotkeyName(A_ThisHotkey)
+strKeyName := GetPopHotkeyLabel(A_ThisHotkey)
 strWindowID := arrObjPopupHotkeys[strKeyName].KeyWindowID ; Identification of the window associated with this hotkey (for example: "akh_pid 123" or "akh_class iTunes")
 DetectHiddenWindows, Off
 IfWinActive, %strWindowID% ; hotkey program window is active and is visible, so hide it, reset previous window (if known) and exit
 {
 	WinHide, %strWindowID%
-	if (strWindowBeforeHotkeyID)
+	if (strWindowBeforeHotkeyID) and (1 = 0) ; ### TEST
 	{
 		WinActivate, ahk_id %strWindowBeforeHotkeyID% ; reactivate the previous window, leaving the hotkey program window as is (hidden or not).
 		strWindowBeforeHotkeyID := ; kill previous window variable
@@ -248,16 +270,16 @@ return
 
 
 ; ------------------------------------------------
-GetPopHotkeyName(strKeyName)
+GetPopHotkeyLabel(strKey)
 ; ------------------------------------------------
-; Create a Popup specific label from a key or key combination. This name will be used
+; Create a Popup specific label from a key or key combination. This label will be used
 ; as array index to store/retreive info like hotkey, path, etc. in the array
-; arrObjPopupHotkeys. This name start with "pop" followed by the key name. To make sure
-; this name complies with AutoHotkey conventions, chars not included in A..Z or 0..1
+; arrObjPopupHotkeys. This label start with "pop" followed by the key name. To make sure
+; this label complies with AutoHotkey conventions, chars not included in A..Z or 0..1
 ; are replaced by # and the ASCII value of the char.
 {
 	strResult := "pop"
-	Loop, Parse, strKeyName
+	Loop, Parse, strKey
 	{
 		if Instr("ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789", A_LoopField)
 			strAdd := A_LoopField
