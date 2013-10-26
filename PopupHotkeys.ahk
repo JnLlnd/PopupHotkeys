@@ -1,8 +1,8 @@
 ; ================================================
-; POPUP HOTKEYS v1.0
+; POPUP HOTKEYS v1.1
 ; Written using AutoHotkey_L v1.1.09.03 (http://l.autohotkey.net/)
 ; By jlalonde on AHK forum
-; 2013-04-22
+; 2013-05-22
 
 ; ================================================
 ; FUNCTION
@@ -37,6 +37,7 @@ global intLaunchDelay := 30 ; WinWait delay; increase or decrease according to t
 
 Menu, Tray, Icon, C:\Windows\System32\imageres.dll, 195, 1
 Menu, Tray, Add ; Add a menu separator
+Menu, Tray, Add, &List Popup programs, ListAllWindow ; Add a menu to the AHK tray icon to list show all windows
 Menu, Tray, Add, &Show all Popup programs, ShowAllWindow ; Add a menu to the AHK tray icon to show all windows
 Menu, Tray, Add, &Hide all Popup programs, HideAllWindow ; Add a menu to the AHK tray icon to hide all windows
 Menu, Tray, Add, &Terminate all Popup programs, TerminateAllWindow ; Add a menu to the AHK tray icon to hide all windows
@@ -58,7 +59,7 @@ OnExit, ShowAllWindowAndExit ; Show all popup programs whenever this script is t
 ; 5. window_identifier (required only for some program, see note below): window title, class name or other identifier of the
 ;    program's window, following the rules in http://l.autohotkey.net/docs/misc/WinTitle.htm, for example "ahk_class iTunes"
 ; 6. startup_function (optional): AHK function to run at program startup (for example, to enter a password of initialize the
-;    program)
+;    program - see PasswordAppStartup example)
 ;
 ; Note about window identifiers (about #5 above):
 ; By default, this script identify programs by their process ID. Some program (like iTunes for Windows) do not respond consistently
@@ -71,8 +72,8 @@ OnExit, ShowAllWindowAndExit ; Show all popup programs whenever this script is t
 arrPopupHotkeysRequests.Insert("#c | C:\Windows\system32\calc.exe | C:\")
 ; Calc will be launched and hidden, with the root of C: drive as initial working directory; hit Windows-C to show or hide Calc.
 
-arrPopupHotkeysRequests.Insert("Numpad0 | C:\Windows\system32\notepad.exe | | | | StartupExample")
-; Notepad will be launched and the "StartupExample" function (at the bottom of this script) will be executed. Then, the window
+arrPopupHotkeysRequests.Insert("Numpad0 | C:\Windows\system32\notepad.exe | | | | SimpleStartupExample")
+; Notepad will be launched and the "SimpleStartupExample" function (at the bottom of this script) will be executed. Then, the window
 ; will be hidden. Hit the Zero key on the numeric keypad to show or hide Notepad.
 
 arrPopupHotkeysRequests.Insert("RControl | C:\Program Files (x86)\iTunes\iTunes.exe | | 1 | ahk_class iTunes")
@@ -84,7 +85,7 @@ arrPopupHotkeysRequests.Insert("RControl | C:\Program Files (x86)\iTunes\iTunes.
 blnWithReport := false ; "true" to get a hotkeys loading report or "false" for a quiet loading of hotkeys.
 strResult :=  CreatePopupHotkeys(blnWithReport)
 if (strResult <> "")
-	MsgBox, %strResult%
+	MsgBox, 16, Popup Hotkeys, %strResult%
 
 return
 ; ================================================
@@ -271,6 +272,21 @@ GetPopHotkeyName(strKeyName)
 
 
 ; ------------------------------------------------
+ListAllWindow:
+; ------------------------------------------------
+strList := ""
+for intIndexNotUsed, objPopupHotkey in arrObjPopupHotkeys
+{
+	for strKey, strVal in objPopupHotkey
+		strList := strList . strKey . ": " . strVal . "`n"
+	strList := strList . "`n"
+}
+MsgBox, 64, Popup Hotkeys, %strList%
+return
+; ------------------------------------------------
+
+
+; ------------------------------------------------
 ShowAllWindowAndExit:
 ; ------------------------------------------------
 gosub, ShowAllWindow
@@ -320,7 +336,7 @@ return
 ; CUSTOM STARTUP FUNCTIONS
 ; ================================================
 
-StartupExample(strWindowID)
+SimpleStartupExample(strWindowID)
 {
 	WinGetTitle, strTitle, %strWindowID%
 	Send, This function is executed when the program [ %strTitle% ] is launched.`n
@@ -328,37 +344,15 @@ StartupExample(strWindowID)
 
 
 
-Base64dec( ByRef OutData, ByRef InData )
-; Provided if you need to decode a password (when you don't want to write your password in clear in the source of your script).
-; We know this is not the best protection but it's better than nothing.
-; Source: by Polyethene / Laszlo (http://www.autohotkey.com/board/topic/85709-base64enc-base64dec-base64-encoder-decoder/)
+PasswordAppStartup(strWindowID)
 {
-	 DllCall( "Crypt32.dll\CryptStringToBinary" ( A_IsUnicode ? "W" : "A" ), UInt,&InData
-			, UInt,StrLen(InData), UInt,1, UInt,0, UIntP,Bytes, Int,0, Int,0, "CDECL Int" )
-	 VarSetCapacity( OutData, Req := Bytes * ( A_IsUnicode ? 2 : 1 ) )
-	 DllCall( "Crypt32.dll\CryptStringToBinary" ( A_IsUnicode ? "W" : "A" ), UInt,&InData
-			, UInt,StrLen(InData), UInt,1, Str,OutData, UIntP,Req, Int,0, Int,0, "CDECL Int" )
-	Return Bytes
+	strUsername := "yourusername"
+	strPassword := "yourpassword"
+	ControlSetText, Edit1, %strUsername%, %strWindowID%
+	ControlSetText, Edit2, %strPassword%, %strWindowID%
+	ControlClick, LoginButton, %strWindowID%
+	SetTitleMatchMode, 1
+	WinWait, Application Window
+	return
 }
-
-
-Base64enc( ByRef OutData, ByRef InData, InDataLen )
-; Provided if you need to manually encode a password with someting like:
-/*
-Base64enc(strEncoded,  "password", 16 )
-Base64dec(strDecoded, strEncoded)
-MsgBox, %strEncoded% %strDecoded%
-clipboard := strEncoded
-return
-*/
-; Source: by Polyethene / Laszlo (http://www.autohotkey.com/board/topic/85709-base64enc-base64dec-base64-encoder-decoder/)
-{
-	 DllCall( "Crypt32.dll\CryptBinaryToString" ( A_IsUnicode ? "W" : "A" )
-			, UInt,&InData, UInt,InDataLen, UInt,1, UInt,0, UIntP,TChars, "CDECL Int" )
-	 VarSetCapacity( OutData, Req := TChars * ( A_IsUnicode ? 2 : 1 ) )
-	 DllCall( "Crypt32.dll\CryptBinaryToString" ( A_IsUnicode ? "W" : "A" )
-			, UInt,&InData, UInt,InDataLen, UInt,1, Str,OutData, UIntP,Req, "CDECL Int" )
-	Return TChars
-}
-
 
