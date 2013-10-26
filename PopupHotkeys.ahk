@@ -34,6 +34,7 @@ global arrPopupHotkeysRequests := Array()
 global arrObjPopupHotkeys := Object()
 global intLaunchDelay := 30 ; WinWait delay - increase or decrease according to the time your largest program takes to load
 
+
 Menu, Tray, Icon, C:\Windows\System32\imageres.dll, 195, 1 ; ### replace with compile icon
 Menu, Tray, Add ; Add a menu separator
 Menu, Tray, Add, &List Popup programs, ListAllWindow ; Add a menu to the AHK tray icon to list show all windows
@@ -42,6 +43,45 @@ Menu, Tray, Add, &Hide all Popup programs, HideAllWindow ; Add a menu to the AHK
 Menu, Tray, Add, &Terminate all Popup programs, TerminateAllWindow ; Add a menu to the AHK tray icon to hide all windows
 OnExit, ShowAllWindowAndExit ; Show all popup programs whenever this script is terminated
 
+; Piece of code for developement phase only
+if (A_ComputerName = "JEAN-PC") ; my personal hotkeys
+	strIniFileName := "PopupHotkeys-MAISON.ini"
+else if (A_ComputerName = "STIC") ; my work hotkeys
+	strIniFileName := "PopupHotkeys-STIC.ini"
+else ; for other users
+	strIniFileName := "PopupHotkeys.ini"
+; / Piece of code for developement phase only
+
+if !InStr(strIniFileName, "\") and !InStr(strIniFileName, "/")
+	strIniFileName := A_ScriptDir . "\" . strIniFileName
+if !FileExist(strIniFileName)
+	FileAppend,
+	(LTrim
+		; Sample PopupHotkeys2 .ini file
+		; ------------------------------
+
+		[Global]
+		; 1 to display a hotkeys loading report or 0 for a quiet loading of hotkeys
+		DisplayLoadReport=1
+
+		[Keys]
+		; Calc will be launched and hidden, with the root of C: drive as initial working
+		; directory; hit Windows-C to show or hide Calc.
+		key1=Calc | #c | C:\Windows\system32\calc.exe | C:\
+
+		; Notepad will be launched and the "SimpleStartupExample" function (at the
+		; bottom of this script) will be executed. Then, the window will be hidden.
+		; Hit the Zero key on the numeric keypad to show or hide Notepad.
+		key2=Notepad Startup | Numpad0 | C:\Windows\system32\notepad.exe | | | | SimpleStartupExample.ahk
+
+		; At the firt hit of the Right Control key (at the right of the Space bar),
+		; iTunes will be launched and hidden; because of iTunes process behaviour, it is
+		; safer to identify the program with its class name "iTunes"; hit the Right
+		; Control key again to show or hide iTunes.
+		key3=iTunes | RControl | C:\Program Files (x86)\iTunes\iTunes.exe | | 1 | ahk_class iTunes
+	
+	), %strIniFileName%
+IniRead, blnWithReport, %strIniFileName%, Global, DisplayLoadReport, 0
 
 ; ================================================
 ; POPUP HOTKEYS REQUESTS
@@ -58,7 +98,7 @@ OnExit, ShowAllWindowAndExit ; Show all popup programs whenever this script is t
 ; 5. no_preload (optional): if "1" the program is launched only at the fisrt activation of the hotkey
 ; 6. window_identifier (required only for some program, see note below): window title, class name or other identifier of the
 ;    program's window, following the rules in http://l.autohotkey.net/docs/misc/WinTitle.htm, for example "ahk_class iTunes"
-; 7. startup_function (optional): AHK function to run at program startup (for example, to enter a password of initialize the
+; 7. startup_script (optional): AHK script to run at program startup (for example, to enter a password of initialize the
 ;    program - see PasswordAppStartup example)
 ;
 ; Note about window identifiers (about #6 above):
@@ -67,43 +107,16 @@ OnExit, ShowAllWindowAndExit ; Show all popup programs whenever this script is t
 ; using one of these options: the program's title ("iTunes"), class name ("ahk_class iTunes"), unique ID ("ahk_id 0x40574") or
 ; process name ("ahk_exe iTunes.exe".) To find a program's title, class, etc., run the Window Spy utility included with AutoHotkey.
 ;
-; Piece of code for developement phase only
-if (A_ComputerName = "JEAN-PC") ; my personal hotkeys
-	strDataFileName := "PopupHotkeys-MAISON.txt" ; ### get from ini file
-else if (A_ComputerName = "STIC") ; my work hotkeys
-	strDataFileName := "PopupHotkeys-STIC.txt" ; ### get from ini file
-else ; for other users
-	strDataFileName := "PopupHotkeys.txt" ; ### get from ini file
-; / Piece of code for developement phase only
-if !InStr(strDataFileName, "\") and !InStr(strDataFileName, "/")
-	strDataFileName := A_ScriptDir . "\" . strDataFileName
 
-if !FileExist(strDataFileName)
-	FileAppend,
-	(LTrim
-		; Sample PopupHotkeys2 data
-		; -------------------------
-
-		; Calc will be launched and hidden, with the root of C: drive as initial working directory; hit Windows-C to show or hide Calc.
-		Calc | #c | C:\Windows\system32\calc.exe | C:\
-
-		; Notepad will be launched and the "SimpleStartupExample" function (at the bottom of this script) will be executed. Then, the window will be hidden. Hit the Zero key on the numeric keypad to show or hide Notepad.
-		Notepad Startup | Numpad0 | C:\Windows\system32\notepad.exe | | | | SimpleStartupExample.ahk
-
-		; At the firt hit of the Rigfht Control key (at the right of the Space bar), iTunes will be launched and hidden; because of iTunes process behaviour, it is safer to identify the program with its class name "iTunes"; hit the Right Control key again to show or hide iTunes.
-		iTunes | RControl | C:\Program Files (x86)\iTunes\iTunes.exe | | 1 | ahk_class iTunes
-	
-	), %strDataFileName%
-Loop, Read, %strDataFileName%
+Loop
 {
-	strDataLine := Trim(A_LoopReadLine)
-	if (StrLen(strDataLine) = 0) or (SubStr(strDataLine, 1, 1) = ";")
-		Continue
-	arrPopupHotkeysRequests.Insert(strDataLine)
+	IniRead, strKeyLine, %strIniFileName%, Keys, Key%A_Index%
+	if (strKeyLine = "ERROR")
+		Break
+	arrPopupHotkeysRequests.Insert(strKeyLine)
 }
 
 ; The following commands will create the requested hotkeys display a result report if the CreatePopupHotkeys parameter is "true".
-blnWithReport := false ; "true" to get a hotkeys loading report or "false" for a quiet loading of hotkeys.
 strResult :=  CreatePopupHotkeys(blnWithReport)
 if (strResult <> "")
 	MsgBox, 16, Popup Hotkeys, %strResult%
@@ -149,13 +162,13 @@ CreatePopupHotkeys(blnDisplayReport := true)
 		strWorkDir := Trim(arrRequest4)
 		blnPreload := Trim(arrRequest5) <> "1"
 		strAhkIdentifier := Trim(arrRequest6)
-		strStartup := Trim(arrRequest7)
-		strReport := strReport . "Creation of " . strName . "(" . strKey . ") -> "
+		strStartupScript := Trim(arrRequest7)
+		strThisKeyReport := ""
 		if (blnPreload)
 		{
 			Run, %strExecPath%, %strWorkDir%, UseErrorLevel, intExecPID
 			if (ErrorLevel = "ERROR")
-				strReport := strReport . "ERROR: Could not launch " . strExecPath . "`n"
+				strThisKeyReport := strThisKeyReport . "ERROR: Could not launch """ . strExecPath . """ (error #" . A_LastError . ")`n"
 			else
 			{
 				if (strAhkIdentifier)
@@ -165,13 +178,21 @@ CreatePopupHotkeys(blnDisplayReport := true)
 				DetectHiddenWindows, On
 				WinWait, %strWindowID%, , intLaunchDelay
 				if errorlevel
-					strReport := strReport . "ERROR: Delay while launching " . strExecPath . " (augment the WinWait delay?)`n"
+					strThisKeyReport := strThisKeyReport . "ERROR: Delay while launching """ . strExecPath . """ (augment the WinWait delay?)`n"
 				Sleep, 200
-				if (strStartup)
-					if IsFunc(strStartup)
-						%strStartup%(strWindowID)
+				if StrLen(strStartupScript)
+				{
+					if !InStr(strStartupScript, "\") and !InStr(strStartupScript, "/")
+						strStartupScript := A_ScriptDir . "\" . strStartupScript
+					if FileExist(strStartupScript)
+					{
+						RunWait, %strStartupScript% %strWindowID%, UseErrorLevel
+						if (ErrorLevel)
+							strThisKeyReport := strThisKeyReport . "ERROR: Error #" . ErrorLevel . " after running startup macro """ . strStartupScript . """`n"
+					}
 					else
-						strReport := strReport . "ERROR: Subroutine " . strStartup . " not found in " . A_ScriptName . "`n"
+						strThisKeyReport := strThisKeyReport . "ERROR: Startup macro """ . strStartupScript . """ not found`n"
+				}
 				WinHide, %strWindowID%
 			}
 		}
@@ -179,17 +200,20 @@ CreatePopupHotkeys(blnDisplayReport := true)
 			if (strAhkIdentifier)
 				strWindowID := strAhkIdentifier ; we use the user defined window identifier
 			else
-				strWindowID := "ahk_pid 9999999" ; the program was not preloaded, so we don't have a pid - create a dummy pid that will be replaced when hotky is pressed (no process should have id 9999999)
+				strWindowID := "ahk_pid 9999999" ; the program was not preloaded, so we don't have a pid - create a dummy pid that will be replaced when hotkey is pressed (no process should have id 9999999)
 		strPopKeyLabel := GetPopHotkeyLabel(strKey)
-		arrObjPopupHotkeys[strPopKeyLabel] := Object("KeyName", strName, "KeyLabel", strPopKeyLabel, "KeyHotkey", strKey, "KeyExecPath", strExecPath, "KeyWorkDir", strWorkDir, "KeyWindowID", strWindowID, "KeyStartup", strStartup)
+		arrObjPopupHotkeys[strPopKeyLabel] := Object("KeyName", strName, "KeyLabel", strPopKeyLabel, "KeyHotkey", strKey, "KeyExecPath", strExecPath, "KeyWorkDir", strWorkDir, "KeyWindowID", strWindowID, "KeyStartup", strStartupScript)
 		Hotkey, %strKey%, PopupHotkey, UseErrorLevel ; http://www.autohotkey.com/docs/commands/Hotkey.htm
 		if (errorLevel)
-			strReport := strReport . "ERROR: " . arrHotkeyErrors[errorLevel] "`n"
-		else
-			strReport := strReport . "OK`n"
+			strThisKeyReport := strThisKeyReport . "ERROR: " . arrHotkeyErrors[errorLevel] "`n"
 		; void the array to make sure old values could not be used in the next loop
 		strRequest := "|||||"
 		StringSplit arrRequest, strRequest, |
+		strReport := strReport . "`nCreation of " . strName . " (" . strKey . ") -> "
+		if StrLen(strThisKeyReport)
+			strReport := strReport . strThisKeyReport
+		else
+			strReport := strReport . "OK`n"
 	}
 	if blnDisplayReport
 		return strReport
@@ -218,7 +242,7 @@ DetectHiddenWindows, Off
 IfWinActive, %strWindowID% ; hotkey program window is active and is visible, so hide it, reset previous window (if known) and exit
 {
 	WinHide, %strWindowID%
-	if (strWindowBeforeHotkeyID) and (1 = 0) ; ### TEST
+	if (strWindowBeforeHotkeyID) and (1 = 0) ; ### TEST - si mouse au dessus rappeler sinon?
 	{
 		WinActivate, ahk_id %strWindowBeforeHotkeyID% ; reactivate the previous window, leaving the hotkey program window as is (hidden or not).
 		strWindowBeforeHotkeyID := ; kill previous window variable
@@ -241,7 +265,7 @@ else
 		{
 			strExecPath := arrObjPopupHotkeys[strKeyName].KeyExecPath
 			strWorkDir := arrObjPopupHotkeys[strKeyName].KeyWorkDir
-			strStartup := arrObjPopupHotkeys[strKeyName].KeyStartup
+			strStartupScript := arrObjPopupHotkeys[strKeyName].KeyStartup
 			Run, %strExecPath%, %strWorkDir%, UseErrorLevel, intExecPID
 			if (ErrorLevel = "ERROR")
 				MsgBox, 16, Popup Hotkeys, ERROR: Could not launch %strExecPath%
@@ -255,11 +279,11 @@ else
 				if errorlevel
 					MsgBox, 16, Popup Hotkeys, ERROR: Delay while launching %strExecPath% (%strWindowID%). Augment the WinWait delay?
 				Sleep, 200
-				if (strStartup)
-					if IsFunc(strStartup)
-						%strStartup%(strWindowID)
+				if (strStartupScript)
+					if IsFunc(strStartupScript)
+						%strStartupScript%(strWindowID)
 					else
-						MsgBox, 16, Popup Hotkeys, ERROR: Function %strStartup% not found in %A_ScriptName%
+						MsgBox, 16, Popup Hotkeys, ERROR: Function %strStartupScript% not found in %A_ScriptName%
 			}
 		}
 	}
