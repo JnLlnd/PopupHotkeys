@@ -1,0 +1,44 @@
+; ================================================
+; FUNCTION
+; ================================================
+; Bind hotkeys to a list of programs ready to be
+; launched or hidden/shown by these hotkeys. For
+; the nostalgics, act a bit like TSR (terminate
+; and stay redident) programs of old MS-DOS time.
+; ================================================
+
+
+; ================================================
+; INSTRUCTIONS
+; ================================================
+; Edit the POPUP HOTKEYS REQUESTS array below to
+; enter the programs you wish to load as popup
+; windows. Run this script and hit hotkeys to
+; show/hide the associated programs.
+; ================================================
+
+
+; ================================================
+; POPUP HOTKEYS REQUESTS
+; ================================================
+; For each program you wish to load, indicate two mandatory parameters and four optional parameters in a string using the | delimiter:
+;
+; arrPopupHotkeysRequests.Insert("name | hotkey | executable_path | working_directory | no_preload | window_identifier | startup_function")
+;
+; 1. name: name of the hotkey, for UI usage only
+; 2. hotkey: the hotkey defined using the AutoHotkey syntax (see http://www.autohotkey.com/docs/Hotkeys.htm), for example "#z"
+;   (Windows-Z) or "Numpad0" (zero on the numeric pad)
+; 3. excutable_path: the path to the executable file of the program to load, for example "C:\Windows\system32\notepad.exe"
+; 4. working_directory (optional): the full path to the initial working directory, for example "C:\MyData"
+; 5. no_preload (optional): if "1" the program is launched only at the fisrt activation of the hotkey
+; 6. window_identifier (required only for some program, see note below): window title, class name or other identifier of the
+;    program's window, following the rules in http://l.autohotkey.net/docs/misc/WinTitle.htm, for example "ahk_class iTunes"
+; 7. startup_script (optional): AHK script to run at program startup (for example, to enter a password of initialize the
+;    program - see PasswordAppStartup example)
+;
+; Note about window identifiers (about #6 above):
+; By default, this script identify programs by their process ID. Some program (like iTunes for Windows) do not respond consistently
+; to this ID when managed by AutoHotkey. If you experience problems with a program that does not respond normally to its hotkey, try
+; using one of these options: the program's title ("iTunes"), class name ("ahk_class iTunes"), unique ID ("ahk_id 0x40574") or
+; process name ("ahk_exe iTunes.exe".) To find a program's title, class, etc., run the Window Spy utility included with AutoHotkey.
+;
