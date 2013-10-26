@@ -1,8 +1,27 @@
 ; ================================================
-; POPUP HOTKEYS v0.1
+; POPUP HOTKEYS v1.0
 ; Written using AutoHotkey_L v1.1.09.03 (http://l.autohotkey.net/)
 ; By jlalonde on AHK forum
-; 2013-03-10
+; 2013-04-22
+
+; ================================================
+; FUNCTION
+; ================================================
+; Bind hotkeys to a list of programs ready to be
+; launched or hidden/shown by these hotkeys. For
+; the nostalgics, act a bit like TSR (terminate
+; and stay redident) programs of old MS-DOS time.
+; ================================================
+
+; ================================================
+; INSTRUCTIONS
+; ================================================
+; Edit the POPUP HOTKEYS REQUESTS array below to
+; enter the programs you wish to load as popup
+; windows. Run this script and hit hotkeys to
+; show/hide the associated programs.
+; ================================================
+
 
 ; ================================================
 ; Auto-execute commands
@@ -41,44 +60,31 @@ OnExit, ShowAllWindowAndExit ; Show all popup programs whenever this script is t
 ; 6. startup_function (optional): AHK function to run at program startup (for example, to enter a password of initialize the
 ;    program)
 ;
-; Note about window identifiers:
+; Note about window identifiers (about #5 above):
 ; By default, this script identify programs by their process ID. Some program (like iTunes for Windows) do not respond consistently
-; to this ID when managed by AutoHotkey. If you experience problems with a program that do not respond normally to its hotkey, try
-; using one of these options: the program's title, class name, unique ID or process name. To find a program's title, class, etc.,
-; run the Window Spy utility included with AutoHotkey.
+; to this ID when managed by AutoHotkey. If you experience problems with a program that does not respond normally to its hotkey, try
+; using one of these options: the program's title ("iTunes"), class name ("ahk_class iTunes"), unique ID ("ahk_id 0x40574") or
+; process name ("ahk_exe iTunes.exe".) To find a program's title, class, etc., run the Window Spy utility included with AutoHotkey.
 ;
 ; Here are three working examples (adapt exec paths to your environment if required):
 
-;arrPopupHotkeysRequests.Insert("#z | C:\Windows\system32\calc.exe | C:\")
-; Calc will be launched and hidden, with the root of C: drive as initial working directory; hit Windows-Z to show or hide Calc.
+arrPopupHotkeysRequests.Insert("#c | C:\Windows\system32\calc.exe | C:\")
+; Calc will be launched and hidden, with the root of C: drive as initial working directory; hit Windows-C to show or hide Calc.
 
-;arrPopupHotkeysRequests.Insert("Numpad0 | C:\Windows\system32\notepad.exe | | | | StartupExample")
-; Notepad will be launched and the StartupExample function will be executed. Then, the window will be hidden. Hit the Zero key
-; on the numeric keypad to show or hide Calc.
+arrPopupHotkeysRequests.Insert("Numpad0 | C:\Windows\system32\notepad.exe | | | | StartupExample")
+; Notepad will be launched and the "StartupExample" function (at the bottom of this script) will be executed. Then, the window
+; will be hidden. Hit the Zero key on the numeric keypad to show or hide Notepad.
 
-;arrPopupHotkeysRequests.Insert("RControl | C:\Program Files (x86)\iTunes\iTunes.exe | | 1 | ahk_class iTunes")
-; At the firt hit of the Control key at the right of the Space bar, iTunes will be launched and hidden; because of iTunes process
-; behaviour, it is safer to identify the program with its class name "iTunes"; hit the Control key again to show or hide iTunes.
-
-; JL EFFACER AVANT DE DISTRIBUER - NE PAS OUBLIER LA FONCTION STARTUP EN BAS !!!
-if (A_ComputerName = "JEAN-PC") ; MAISON
-{
-	arrPopupHotkeysRequests.Insert("SC16D | C:\Program Files (x86)\iTunes\iTunes.exe | | | ahk_class iTunes") ; Launch_Media = SC16D
-	arrPopupHotkeysRequests.Insert("SC132 | C:\Program Files (x86)\Quicken\qw.exe | | 1 | ahk_class QFRAME") ; Browser_Home = SC132
-}
-else
-{
-	arrPopupHotkeysRequests.Insert(" NumpadMult | C:\Users\jlalonde\AppData\Local\Octopus\ESI.Octopus.WinUI.exe | C:\Users\jlalonde\AppData\Local\Octopus | 1 | ahk_class WindowsForms10.Window.8.app.0.aec740_r15_ad1 | OctopusStartup")
-	arrPopupHotkeysRequests.Insert(" NumpadDiv | OneNote.exe | | 1 | ahk_class Framework::CFrame")
-	arrPopupHotkeysRequests.Insert("Browser_Home | C:\Program Files (x86)\Quicken\qw.exe | | 1 | ahk_class QFRAME")
-}
-
+arrPopupHotkeysRequests.Insert("RControl | C:\Program Files (x86)\iTunes\iTunes.exe | | 1 | ahk_class iTunes")
+; At the firt hit of the Rigfht Control key (at the right of the Space bar), iTunes will be launched and hidden; because of iTunes
+; process behaviour, it is safer to identify the program with its class name "iTunes"; hit the Right Control key again to show or
+; hide iTunes.
 
 ; The following commands will create the requested hotkeys display a result report if the CreatePopupHotkeys parameter is "true".
 blnWithReport := false ; "true" to get a hotkeys loading report or "false" for a quiet loading of hotkeys.
 strResult :=  CreatePopupHotkeys(blnWithReport)
 if (strResult <> "")
-	MsgBox, 16, Popup Hotkeys, %strResult%
+	MsgBox, %strResult%
 
 return
 ; ================================================
@@ -158,7 +164,7 @@ CreatePopupHotkeys(blnDisplayReport := true)
 			strReport := strReport . "ERROR: " . arrHotkeyErrors[errorLevel] "`n"
 		else
 			strReport := strReport . "OK`n"
-		; kill the array to make sure old values could not be used in the next loop
+		; void the array to make sure old values could not be used in the next loop
 		strRequest := "|||||"
 		StringSplit arrRequest, strRequest, |
 	}
@@ -304,7 +310,7 @@ for intIndexNotUsed, objPopupHotkey in arrObjPopupHotkeys
 {
 	strWindowID := objPopupHotkey.KeyWindowID
 	WinShow, %strWindowID% ; In case the window is hidden, make sure Save data dialog box could be seen. No error and no action if window is not found.
-	WinClose, %strWindowID% ; Closes the specified window. Unlike WinKill, this command eill give the user a chance to save its unsaved data.
+	WinClose, %strWindowID% ; Closes the specified window. Unlike WinKill, this command will give the user a chance to save its unsaved data.
 }
 return
 ; ------------------------------------------------
@@ -319,3 +325,40 @@ StartupExample(strWindowID)
 	WinGetTitle, strTitle, %strWindowID%
 	Send, This function is executed when the program [ %strTitle% ] is launched.`n
 }
+
+
+
+Base64dec( ByRef OutData, ByRef InData )
+; Provided if you need to decode a password (when you don't want to write your password in clear in the source of your script).
+; We know this is not the best protection but it's better than nothing.
+; Source: by Polyethene / Laszlo (http://www.autohotkey.com/board/topic/85709-base64enc-base64dec-base64-encoder-decoder/)
+{
+	 DllCall( "Crypt32.dll\CryptStringToBinary" ( A_IsUnicode ? "W" : "A" ), UInt,&InData
+			, UInt,StrLen(InData), UInt,1, UInt,0, UIntP,Bytes, Int,0, Int,0, "CDECL Int" )
+	 VarSetCapacity( OutData, Req := Bytes * ( A_IsUnicode ? 2 : 1 ) )
+	 DllCall( "Crypt32.dll\CryptStringToBinary" ( A_IsUnicode ? "W" : "A" ), UInt,&InData
+			, UInt,StrLen(InData), UInt,1, Str,OutData, UIntP,Req, Int,0, Int,0, "CDECL Int" )
+	Return Bytes
+}
+
+
+Base64enc( ByRef OutData, ByRef InData, InDataLen )
+; Provided if you need to manually encode a password with someting like:
+/*
+Base64enc(strEncoded,  "password", 16 )
+Base64dec(strDecoded, strEncoded)
+MsgBox, %strEncoded% %strDecoded%
+clipboard := strEncoded
+return
+*/
+; Source: by Polyethene / Laszlo (http://www.autohotkey.com/board/topic/85709-base64enc-base64dec-base64-encoder-decoder/)
+{
+	 DllCall( "Crypt32.dll\CryptBinaryToString" ( A_IsUnicode ? "W" : "A" )
+			, UInt,&InData, UInt,InDataLen, UInt,1, UInt,0, UIntP,TChars, "CDECL Int" )
+	 VarSetCapacity( OutData, Req := TChars * ( A_IsUnicode ? 2 : 1 ) )
+	 DllCall( "Crypt32.dll\CryptBinaryToString" ( A_IsUnicode ? "W" : "A" )
+			, UInt,&InData, UInt,InDataLen, UInt,1, Str,OutData, UIntP,Req, "CDECL Int" )
+	Return TChars
+}
+
+
