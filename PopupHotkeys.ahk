@@ -239,7 +239,8 @@ DetectHiddenWindows, Off
 IfWinActive, %strWindowID% ; hotkey program window is active and is visible, so hide it, reset previous window (if known) and exit
 {
 	WinHide, %strWindowID%
-	if (strWindowBeforeHotkeyID) and (1 = 0) ; ### TEST - si mouse au dessus rappeler sinon?
+	MouseGetPos, , , strWinMouseId
+	if (strWindowBeforeHotkeyID = strWinMouseId) ; If mouse over previous window, reactivate it. If not leave it as is.
 	{
 		WinActivate, ahk_id %strWindowBeforeHotkeyID% ; reactivate the previous window, leaving the hotkey program window as is (hidden or not).
 		strWindowBeforeHotkeyID := ; kill previous window variable
