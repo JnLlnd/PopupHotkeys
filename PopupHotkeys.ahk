@@ -37,6 +37,10 @@ arrObjPopupHotkeys := Object()
 
 Gosub, CreateMenu
 Gosub, LoadIni
+Gosub, BuildGui1
+
+Hotkey, %strSettingsHotkey%, Gui1Show
+
 
 ; The following commands will create the requested hotkeys display a result report
 ; if the CreatePopupHotkeys parameter is "true".
@@ -98,33 +102,30 @@ if !FileExist(strIniFileName)
 		[Global]
 		; 1 to display a hotkeys loading report or 0 for a quiet loading of hotkeys
 		DisplayLoadReport=1
-		; WinWait delay - increase or decrease according to the time your largest program takes to load
-		LaunchDelay := 10 
 		
 		[Keys]
-		; Key0=name | hotkey | excutable_path | working_directory | no_preload | window_identifier | startup_script | remark
+		; Key0=name | hotkey | exec_pathfile | working_directory | no_preload | window_identifier | startup_script | launch_delay | remark
 
 		; Calc will be launched and hidden, with the root of C: drive as initial working
 		; directory; hit Windows-C to show or hide Calc.
-		Key1=Calc | #c | C:\Windows\system32\calc.exe | C:\ | | | | Windows-C
+		Key1=Calc | #c | C:\Windows\system32\calc.exe | C:\ | | | | 5 | Windows-C
 
 		; Notepad will be launched and the "SimpleStartupExample" function (at the
 		; bottom of this script) will be executed. Then, the window will be hidden.
 		; Hit the Zero key on the numeric keypad to show or hide Notepad.
-		Key2=Notepad Startup | Numpad0 | C:\Windows\system32\notepad.exe | | | | SimpleStartupExample.ahk | Numpad Zero
+		Key2=Notepad Startup | Numpad0 | C:\Windows\system32\notepad.exe | | | | SimpleStartupExample.ahk | | Numpad Zero
 
 		; At the firt hit of the Right Control key (at the right of the Space bar),
 		; iTunes will be launched and hidden; because of iTunes process behaviour, it is
 		; safer to identify the program with its class name "iTunes"; hit the Right
 		; Control key again to show or hide iTunes.
-		Key3=iTunes | RControl | C:\Program Files (x86)\iTunes\iTunes.exe | | 1 | ahk_class iTunes | | Right Control
+		Key3=iTunes | RControl | C:\Program Files (x86)\iTunes\iTunes.exe | | 1 | ahk_class iTunes | | 30 | Right Control
 	
 	), %strIniFileName%
 
 ; blnDisplayReport: 1 to display a hotkeys loading report or 0 for a quiet loading of hotkeys
 IniRead, blnDisplayReport, %strIniFileName%, Global, DisplayLoadReport, 0
-; WinWait delay - increase or decrease according to the time your largest program takes to load
-IniRead, intLaunchDelay, %strIniFileName%, Global, LaunchDelay, 10
+IniRead, strSettingsHotkey, %strIniFileName%, Global, SettingHotkey, +^H
 
 Loop
 {
@@ -161,7 +162,12 @@ for intIndexNotUsed, strRequest in arrPopupHotkeysRequests
 	blnPreload := Trim(arrRequest5) <> "1"
 	strAhkIdentifier := Trim(arrRequest6)
 	strStartupScript := Trim(arrRequest7)
-	strRemark := Trim(arrRequest8)
+	intLaunchDelay := Trim(arrRequest8)
+	if intLaunchDelay is not integer ; no ( ) for this if, it is not an expression
+		intLaunchDelay := 10
+	else if (intLaunchDelay < 0)
+		intLaunchDelay := 10
+	strRemark := Trim(arrRequest9)
 
 	strThisKeyReport := ""
 
@@ -183,13 +189,14 @@ for intIndexNotUsed, strRequest in arrPopupHotkeysRequests
 												, "KeyWorkDir", strWorkDir
 												, "KeyWindowID", strWindowID
 												, "KeyStartup", strStartupScript
+												, "LaunchDelay", intLaunchDelay
 												, "KeyRemark", strRemark)
 	Hotkey, %strKey%, PopupHotkey, UseErrorLevel ; http://www.autohotkey.com/docs/commands/Hotkey.htm
 	if (errorLevel)
 		strThisKeyReport := strThisKeyReport . "ERROR: " . arrHotkeyErrors[errorLevel] "`n"
 
 	; void the array to make sure old values could not be used in the next loop
-	strRequest := "|||||||"
+	strRequest := "||||||||"
 	StringSplit arrRequest, strRequest, |
 
 	strReport := strReport . "`nCreation of " . strName . " (" . strKey . ") -> "
@@ -329,6 +336,7 @@ RunExecPathAfterLoad:
 strExecPath := arrObjPopupHotkeys[strKeyName].KeyExecPath
 strWorkDir := arrObjPopupHotkeys[strKeyName].KeyWorkDir
 strStartupScript := arrObjPopupHotkeys[strKeyName].KeyStartup
+intLaunchDelay := arrObjPopupHotkeys[strKeyName].LaunchDelay
 Run, %strExecPath%, %strWorkDir%, UseErrorLevel, intExecPID
 if (ErrorLevel = "ERROR")
 	MsgBox, 16, Popup Hotkeys, ERROR: Could not launch %strExecPath%
@@ -459,3 +467,74 @@ GetPopHotkeyLabel(strKey)
 	return strResult
 }
 ; ------------------------------------------------
+
+
+
+
+; ------------------------------------------------
+BuildGui1:
+; ------------------------------------------------
+Gui, -MaximizeBox +Theme -ToolWindow
+Gui, 1:Font, s12 w700, Verdana
+Gui, 1:Add, Text, x10 y10 w490 h30, Popup Hotkeys v2
+Gui, 1:Font, s8 w400, Verdana
+Gui, 1:Add, Text, x10 y30 w490 h30, Popup Hotkeys v2
+Gui, 1:Add, ListView, x10 y70 w480 h340 +0x10, ListView
+Gui, 1:Add, Button, x500 y70 w100 h20, &Add...
+Gui, 1:Add, Button, x500 y100 w100 h20, &Edit...
+Gui, 1:Add, Button, x500 y130 w100 h20, &Remove...
+Gui, 1:Add, Button, x500 y170 w100 h20, &List Hotkeys...
+Gui, 1:Add, Button, x500 y200 w100 h20, &Show All
+Gui, 1:Add, Button, x500 y230 w100 h20, &Hide All
+Gui, 1:Add, Button, x500 y260 w100 h20, &Terminate All
+Gui, 1:Font, s9 w700, Verdana
+Gui, 1:Add, Text, x500 y290 w100 h20, Options
+Gui, 1:Font, s8 w400, Arial
+Gui, 1:Add, Checkbox, x500 y305 w110 h30 +0x10, &Display load report
+Gui, 1:Add, Text, x500 y335 w100 h20, Settings Hot&key
+Gui, 1:Add, Hotkey, x500 y350 w100 h30 limit3 vstrSettingsHotkey, %strSettingsHotkey%
+Gui, 1:Font, s9 w700, Arial
+Gui, 1:Add, Button, x500 y390 w100 h20 gGui1Save, &Close
+Gui, 1:Font, s9 w400, Arial
+; Generated using SmartGuiXP Creator mod 4.3.29.0
+return
+; ------------------------------------------------
+
+
+
+; ------------------------------------------------
+Gui1Show:
+; ------------------------------------------------
+Gui, 1:Show, Center w610 h420, PopupHotkeys v2
+return
+; ------------------------------------------------
+
+
+
+; ------------------------------------------------
+Gui1Save:
+; ------------------------------------------------
+strPrevSettingsHotkey := strSettingsHotkey
+Gui, 1:Submit, NoHide
+Hotkey, %strSettingsHotkey%, Gui1Show, UseErrorLevel ; http://www.autohotkey.com/docs/commands/Hotkey.htm
+if (errorLevel)
+{
+	strSettingsHotkey := strPrevSettingsHotkey
+	Hotkey, %strSettingsHotkey%, Gui1Show
+	MsgBox, 48, "ERROR: " . arrHotkeyErrors[errorLevel]
+}
+else
+	Hotkey, %strPrevSettingsHotkey%, Off
+Gui, Cancel
+return
+; ------------------------------------------------
+
+
+
+; ------------------------------------------------
+GuiClose:
+; ------------------------------------------------
+Gui, Cancel ; not required but clear ;-)
+; ------------------------------------------------
+
+
