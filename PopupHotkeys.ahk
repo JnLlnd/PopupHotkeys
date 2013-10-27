@@ -171,7 +171,9 @@ for intIndexNotUsed, strRequest in arrPopupHotkeysRequests
 		if (strAhkIdentifier)
 			strWindowID := strAhkIdentifier ; we use the user defined window identifier
 		else
-			strWindowID := "ahk_pid 9999999" ; the program was not preloaded, so we don't have a pid - create a dummy pid that will be replaced when hotkey is pressed (no process should have id 9999999)
+			strWindowID := "ahk_pid 9999999"
+			; the program was not preloaded, so we don't have a pid - create a dummy pid that will be replaced when
+			; hotkey is pressed (no process should have id 9999999)
 
 	strPopKeyLabel := GetPopHotkeyLabel(strKey)
 	arrObjPopupHotkeys[strPopKeyLabel] := Object("KeyName", strName
@@ -224,7 +226,8 @@ RunExecPathOnLoad:
 ; ------------------------------------------------
 Run, %strExecPath%, %strWorkDir%, UseErrorLevel, intExecPID
 if (ErrorLevel = "ERROR")
-	strThisKeyReport := strThisKeyReport . "ERROR: Could not launch """ . strExecPath . """ (error #" . A_LastError . ")`n"
+	strThisKeyReport := strThisKeyReport . "ERROR: Could not launch """ . strExecPath . """ (error #" 
+		. A_LastError . ")`n"
 else
 {
 	if (strAhkIdentifier)
@@ -234,7 +237,8 @@ else
 	DetectHiddenWindows, On
 	WinWait, %strWindowID%, , %intLaunchDelay%
 	if errorlevel
-		strThisKeyReport := strThisKeyReport . "ERROR: Delay while launching """ . strExecPath . """ (augment LaunchDelay in .ini file?)`n"
+		strThisKeyReport := strThisKeyReport . "ERROR: Delay while launching """ . strExecPath 
+			. """ (augment LaunchDelay in .ini file?)`n"
 	Sleep, 200
 	if StrLen(strStartupScript)
 	{
@@ -244,7 +248,8 @@ else
 		{
 			RunWait, %strStartupScript% "%strWindowID%", UseErrorLevel
 			if (ErrorLevel)
-				strThisKeyReport := strThisKeyReport . "ERROR: Error #" . ErrorLevel . " after running startup macro """ . strStartupScript . """`n"
+				strThisKeyReport := strThisKeyReport . "ERROR: Error #" . ErrorLevel 
+					. " after running startup macro """ . strStartupScript . """`n"
 		}
 		else
 			strThisKeyReport := strThisKeyReport . "ERROR: Startup macro """ . strStartupScript . """ not found`n"
@@ -270,9 +275,11 @@ PopupHotkey:
 ;    the startup script (if present) is executed.
 Critical ; Prevents the current thread from being interrupted by other threads.
 strKeyName := GetPopHotkeyLabel(A_ThisHotkey)
-strWindowID := arrObjPopupHotkeys[strKeyName].KeyWindowID ; Identification of the window associated with this hotkey (for example: "akh_pid 123" or "akh_class iTunes")
+; Identification of the window associated with this hotkey (for example: "akh_pid 123" or "akh_class iTunes")
+strWindowID := arrObjPopupHotkeys[strKeyName].KeyWindowID
 DetectHiddenWindows, Off
-IfWinActive, %strWindowID% ; hotkey program window is active and is visible, so hide it, reset previous window (if known) and exit
+IfWinActive, %strWindowID%
+	; hotkey program window is active and is visible, so hide it, reset previous window (if known) and exit
 	Gosub, HideWindowID
 else
 {
@@ -281,9 +288,12 @@ else
 		WinShow, %strWindowID%
 	else
 	{
-		strWindowBeforeHotkeyID := WinExist("A") ; hotkey program is not active, remember the window that was active before we reactivate it
-		IfWinExist, %strWindowID% ; hotkey program window exists, visible or not (we don't care here), but is not active, so show it, activate it and exit
+		; hotkey program is not active, remember the window that was active before we reactivate it
+		strWindowBeforeHotkeyID := WinExist("A")
+		IfWinExist, %strWindowID%
 		{
+			; hotkey program window exists, visible or not (we don't care here), but is not active,
+			; so show it, activate it and exit
 			WinShow, %strWindowID% ; in case it was not visible
 			WinActivate, %strWindowID%
 		}
@@ -301,9 +311,11 @@ HideWindowID:
 ; ------------------------------------------------
 WinHide, %strWindowID%
 MouseGetPos, , , strWinMouseId
-if (strWindowBeforeHotkeyID = strWinMouseId) ; If mouse over previous window, reactivate it. If not leave it as is.
+if (strWindowBeforeHotkeyID = strWinMouseId)
 {
-	WinActivate, ahk_id %strWindowBeforeHotkeyID% ; reactivate the previous window, leaving the hotkey program window as is (hidden or not).
+	; If mouse over previous window, reactivate it. If not leave it as is.
+	; Reactivate the previous window, leaving the hotkey program window as is (hidden or not).
+	WinActivate, ahk_id %strWindowBeforeHotkeyID%
 	strWindowBeforeHotkeyID := ; kill previous window variable
 }
 return
@@ -322,13 +334,16 @@ if (ErrorLevel = "ERROR")
 	MsgBox, 16, Popup Hotkeys, ERROR: Could not launch %strExecPath%
 else
 {
-	if (arrObjPopupHotkeys[strKeyName].KeyWindowID = "") or (InStr(arrObjPopupHotkeys[strKeyName].KeyWindowID, "ahk_pid"))
-		arrObjPopupHotkeys[strKeyName].KeyWindowID := "ahk_pid " . intExecPID ; save or update the new pid in the array associated to this hotkey
+	if (arrObjPopupHotkeys[strKeyName].KeyWindowID = "")
+		or (InStr(arrObjPopupHotkeys[strKeyName].KeyWindowID, "ahk_pid"))
+		; save or update the new pid in the array associated to this hotkey
+		arrObjPopupHotkeys[strKeyName].KeyWindowID := "ahk_pid " . intExecPID
 	strWindowID := arrObjPopupHotkeys[strKeyName].KeyWindowID
 	DetectHiddenWindows, On
 	WinWait, %strWindowID%, , %intLaunchDelay%
 	if errorlevel
-		MsgBox, 16, Popup Hotkeys, ERROR: Delay while launching %strExecPath% (%strWindowID%). Augment the WinWait delay?
+		MsgBox, 16, Popup Hotkeys
+			, ERROR: Delay while launching %strExecPath% (%strWindowID%). Augment the WinWait delay?
 	Sleep, 200
 	if StrLen(strStartupScript)
 	{
@@ -407,8 +422,11 @@ TerminateAllWindow:
 for intIndexNotUsed, objPopupHotkey in arrObjPopupHotkeys
 {
 	strWindowID := objPopupHotkey.KeyWindowID
-	WinShow, %strWindowID% ; In case the window is hidden, make sure Save data dialog box could be seen. No error and no action if window is not found.
-	WinClose, %strWindowID% ; Closes the specified window. Unlike WinKill, this command will give the user a chance to save its unsaved data.
+	; In case the window is hidden, make sure Save data dialog box could be seen.
+	; No error and no action if window is not found.
+	WinShow, %strWindowID%
+	; Closes the specified window. Unlike WinKill, this command will give the user a chance to save its unsaved data.
+	WinClose, %strWindowID%
 }
 return
 ; ------------------------------------------------
