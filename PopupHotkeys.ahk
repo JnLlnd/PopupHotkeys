@@ -37,9 +37,10 @@ arrObjPopupHotkeys := Object()
 
 Gosub, CreateMenu
 Gosub, LoadIni
-Gosub, BuildGui1
+Gosub, Gui1Build
+Gosub, Gui1Load
 
-Hotkey, %strSettingsHotkey%, Gui1Show
+Hotkey, %strPopupHotkeysSettingsHotkey%, Gui1Show
 
 
 ; The following commands will create the requested hotkeys display a result report
@@ -67,6 +68,7 @@ CreateMenu:
 ; ------------------------------------------------
 Menu, Tray, Icon, %A_ScriptDir%\ico\Visualpharm-Icons8-Metro-Style-Computer-Hardware-Keyboard.ico, 1
 Menu, Tray, Add ; Add a menu separator
+Menu, Tray, Add, &PopupHotkeys Settings, Gui1Show ; Add a menu to the AHK tray icon to show settings windows
 Menu, Tray, Add, &List Popup programs, ListAllWindow ; Add a menu to the AHK tray icon to list show all windows
 Menu, Tray, Add, &Show all Popup programs, ShowAllWindow ; Add a menu to the AHK tray icon to show all windows
 Menu, Tray, Add, &Hide all Popup programs, HideAllWindow ; Add a menu to the AHK tray icon to hide all windows
@@ -100,11 +102,13 @@ if !FileExist(strIniFileName)
 		; ------------------------------
 
 		[Global]
+		; Hotkey to open PopupHotkeys settings window (by default Shift-Ctrl-K)
+		PopupHotkeysSettingsHotkey=+^K
 		; 1 to display a hotkeys loading report or 0 for a quiet loading of hotkeys
 		DisplayLoadReport=1
 		
 		[Keys]
-		; Key0=name | hotkey | exec_pathfile | working_directory | no_preload | window_identifier | startup_script | launch_delay | remark
+		; Key0=name | hotkey | exec_pathfile | working_directory | preload | window_identifier | startup_script | launch_delay | remark
 
 		; Calc will be launched and hidden, with the root of C: drive as initial working
 		; directory; hit Windows-C to show or hide Calc.
@@ -125,7 +129,7 @@ if !FileExist(strIniFileName)
 
 ; blnDisplayReport: 1 to display a hotkeys loading report or 0 for a quiet loading of hotkeys
 IniRead, blnDisplayReport, %strIniFileName%, Global, DisplayLoadReport, 0
-IniRead, strSettingsHotkey, %strIniFileName%, Global, SettingHotkey, +^H
+IniRead, strPopupHotkeysSettingsHotkey, %strIniFileName%, Global, PopupHotkeysSettingsHotkey, +^K
 
 Loop
 {
@@ -159,7 +163,7 @@ for intIndexNotUsed, strRequest in arrPopupHotkeysRequests
 	strKey := Trim(arrRequest2)
 	strExecPath := Trim(arrRequest3)
 	strWorkDir := Trim(arrRequest4)
-	blnPreload := Trim(arrRequest5) <> "1"
+	blnPreload := Trim(arrRequest5) = "1"
 	strAhkIdentifier := Trim(arrRequest6)
 	strStartupScript := Trim(arrRequest7)
 	intLaunchDelay := Trim(arrRequest8)
@@ -245,7 +249,7 @@ else
 	WinWait, %strWindowID%, , %intLaunchDelay%
 	if errorlevel
 		strThisKeyReport := strThisKeyReport . "ERROR: Delay while launching """ . strExecPath 
-			. """ (augment LaunchDelay in .ini file?)`n"
+			. """ (augment LaunchDelay in settings?)`n"
 	Sleep, 200
 	if StrLen(strStartupScript)
 	{
@@ -472,14 +476,14 @@ GetPopHotkeyLabel(strKey)
 
 
 ; ------------------------------------------------
-BuildGui1:
+Gui1Build:
 ; ------------------------------------------------
 Gui, -MaximizeBox +Theme -ToolWindow
 Gui, 1:Font, s12 w700, Verdana
 Gui, 1:Add, Text, x10 y10 w490 h30, Popup Hotkeys v2
 Gui, 1:Font, s8 w400, Verdana
 Gui, 1:Add, Text, x10 y30 w490 h30, Popup Hotkeys v2
-Gui, 1:Add, ListView, x10 y70 w480 h340 +0x10, ListView
+Gui, 1:Add, ListView, x10 y70 w480 h340 +0x10 lvHotkeys, Name|Hotkey|Remark|Load ; ### make it blod
 Gui, 1:Add, Button, x500 y70 w100 h20, &Add...
 Gui, 1:Add, Button, x500 y100 w100 h20, &Edit...
 Gui, 1:Add, Button, x500 y130 w100 h20, &Remove...
@@ -490,9 +494,10 @@ Gui, 1:Add, Button, x500 y260 w100 h20, &Terminate All
 Gui, 1:Font, s9 w700, Verdana
 Gui, 1:Add, Text, x500 y290 w100 h20, Options
 Gui, 1:Font, s8 w400, Arial
-Gui, 1:Add, Checkbox, x500 y305 w110 h30 +0x10, &Display load report
+Gui, 1:Add, Checkbox, x500 y305 w110 h30 +0x10 vblnDisplayReport, &Display load report
 Gui, 1:Add, Text, x500 y335 w100 h20, Settings Hot&key
-Gui, 1:Add, Hotkey, x500 y350 w100 h30 limit3 vstrSettingsHotkey, %strSettingsHotkey%
+Gui, 1:Add, Hotkey, x500 y350 w100 h30 limit131 vstrPopupHotkeysSettingsHotkey, %strPopupHotkeysSettingsHotkey%
+; limit131 = 1: Prevent unmodified keys + 2: Prevent Shift-only keys + 128: Prevent Shift-Control-Alt keys
 Gui, 1:Font, s9 w700, Arial
 Gui, 1:Add, Button, x500 y390 w100 h20 gGui1Save, &Close
 Gui, 1:Font, s9 w400, Arial
@@ -514,17 +519,25 @@ return
 ; ------------------------------------------------
 Gui1Save:
 ; ------------------------------------------------
-strPrevSettingsHotkey := strSettingsHotkey
+; ### CONFIRM BEFORE SAVING
+strPrevSettingsHotkey := strPopupHotkeysSettingsHotkey
 Gui, 1:Submit, NoHide
-Hotkey, %strSettingsHotkey%, Gui1Show, UseErrorLevel ; http://www.autohotkey.com/docs/commands/Hotkey.htm
-if (errorLevel)
+if (strPopupHotkeysSettingsHotkey <> strPrevSettingsHotkey)
 {
-	strSettingsHotkey := strPrevSettingsHotkey
-	Hotkey, %strSettingsHotkey%, Gui1Show
-	MsgBox, 48, "ERROR: " . arrHotkeyErrors[errorLevel]
+	Hotkey, %strPopupHotkeysSettingsHotkey%, Gui1Show, UseErrorLevel
+	; http://www.autohotkey.com/docs/commands/Hotkey.htm
+	if (errorLevel)
+	{
+		strPopupHotkeysSettingsHotkey := strPrevSettingsHotkey
+		Hotkey, %strPopupHotkeysSettingsHotkey%, Gui1Show
+		MsgBox, 48, "ERROR: " . arrHotkeyErrors[errorLevel]
+	}
+	else
+	{
+		IniWrite, %strPopupHotkeysSettingsHotkey%, %strIniFileName%, Global, PopupHotkeysSettingsHotkey
+		Hotkey, %strPrevSettingsHotkey%, Off
+	}
 }
-else
-	Hotkey, %strPrevSettingsHotkey%, Off
 Gui, Cancel
 return
 ; ------------------------------------------------
@@ -534,7 +547,27 @@ return
 ; ------------------------------------------------
 GuiClose:
 ; ------------------------------------------------
-Gui, Cancel ; not required but clear ;-)
+Gosub, Gui1Save
+return
 ; ------------------------------------------------
 
 
+; ------------------------------------------------
+Gui1Load:
+; ------------------------------------------------
+for intIndex, strRequest in arrPopupHotkeysRequests
+{
+	StringSplit arrRequest, strRequest, |
+	LV_Add(""
+		, Trim(arrRequest1) ; Name
+		, Trim(arrRequest2) ; Hotkey
+		, Trim(arrRequest9) ; Remark
+		, Trim(arrRequest5) <> "1" ? "No" : "Yes") ; Preload
+}
+
+GuiControl, , blnDisplayReport, %blnDisplayReport%
+GuiControl, , strPopupHotkeysSettingsHotkey, %strPopupHotkeysSettingsHotkey%
+Loop, 4
+	LV_ModifyCol(A_Index, "AutoHdr")
+return
+; ------------------------------------------------
