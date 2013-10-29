@@ -50,6 +50,8 @@ Gosub, CreatePopupHotkeys
 if blnDisplayReport
 	MsgBox, 16, Popup Hotkeys, %strReport%
 
+OnExit, ShowAllAndExit
+
 return
 
 ; ================================================
@@ -59,9 +61,8 @@ return
 
 
 ; ================================================
-; POPUP HOTKEYS ROUTINES
+; POPUP HOTKEYS LOAD COMMANDS
 ; ================================================
-
 
 ; ------------------------------------------------
 CreateMenu:
@@ -69,10 +70,10 @@ CreateMenu:
 Menu, Tray, Icon, %A_ScriptDir%\ico\Visualpharm-Icons8-Metro-Style-Computer-Hardware-Keyboard.ico, 1
 Menu, Tray, Add ; Add a menu separator
 Menu, Tray, Add, &PopupHotkeys Settings, Gui1Show ; Add a menu to the AHK tray icon to show settings windows
-Menu, Tray, Add, &List Popup programs, ListAllWindow ; Add a menu to the AHK tray icon to list show all windows
-Menu, Tray, Add, &Show all Popup programs, ShowAllWindow ; Add a menu to the AHK tray icon to show all windows
-Menu, Tray, Add, &Hide all Popup programs, HideAllWindow ; Add a menu to the AHK tray icon to hide all windows
-Menu, Tray, Add, &Terminate all Popup programs, TerminateAllWindow ; Add a menu to the AHK tray icon to hide all windows
+Menu, Tray, Add, &List Popup programs, Gui1List ; Add a menu to the AHK tray icon to list show all windows
+Menu, Tray, Add, &Show all Popup programs, Gui1ShowAll ; Add a menu to the AHK tray icon to show all windows
+Menu, Tray, Add, &Hide all Popup programs, Gui1HideAll ; Add a menu to the AHK tray icon to hide all windows
+Menu, Tray, Add, &Terminate all Popup programs, Gui1TerminateAll ; Add a menu to the AHK tray icon to hide all windows
 return
 ; ------------------------------------------------
 
@@ -138,6 +139,63 @@ Loop
 		Break
 	arrPopupHotkeysRequests.Insert(strKeyLine)
 }
+return
+; ------------------------------------------------
+
+
+
+; ------------------------------------------------
+Gui1Build:
+; ------------------------------------------------
+Gui, -MaximizeBox +Theme -ToolWindow
+Gui, 1:Font, s12 w700, Verdana
+Gui, 1:Add, Text, x10 y10 w490 h30, Popup Hotkeys v2
+Gui, 1:Font, s8 w400, Verdana
+Gui, 1:Add, Text, x10 y30 w490 h30, Popup Hotkeys v2
+Gui, 1:Add, Picture, x4 y75 w16 h-1 gGui1Help, %A_ScriptDir%\ico\Visualpharm-Icons8-Metro-Style-System-Help.ico
+Gui, 1:Add, Picture, x4 y100 w16 h-1 gGui1MoveUp, %A_ScriptDir%\ico\Visualpharm-Icons8-Metro-Style-Arrows-Up.ico
+Gui, 1:Add, Picture, x4  y120 w16 h-1 gGui1MoveDown, %A_ScriptDir%\ico\Visualpharm-Icons8-Metro-Style-Arrows-Down.ico
+Gui, 1:Add, ListView, x25 y70 w460 h340 lvHotkeys, Name|Hotkey|Remark|Load
+Gui, 1:Add, Button, x500 y70 w100 h20 gGui1Add, &Add...
+Gui, 1:Add, Button, x500 y100 w100 h20 gGui1Edit, &Edit...
+Gui, 1:Add, Button, x500 y130 w100 h20 gGui1Remove, &Remove...
+Gui, 1:Add, Button, x500 y170 w100 h20 gGui1List, &List Hotkeys...
+Gui, 1:Add, Button, x500 y200 w100 h20 gGui1ShowAll, &Show All
+Gui, 1:Add, Button, x500 y230 w100 h20 gGui1HideAll, &Hide All
+Gui, 1:Add, Button, x500 y260 w100 h20 gGui1TerminateAll, &Terminate All
+Gui, 1:Font, s9 w700, Verdana
+Gui, 1:Add, Text, x500 y290 w100 h20, Options
+Gui, 1:Font, s8 w400, Arial
+Gui, 1:Add, Text, x500 y310 w100 h20, Settings Hot&key
+Gui, 1:Add, Hotkey, x500 y325 w100 h30 limit131 vstrPopupHotkeysSettingsHotkey, %strPopupHotkeysSettingsHotkey%
+; limit131 = 1: Prevent unmodified keys + 2: Prevent Shift-only keys + 128: Prevent Shift-Control-Alt keys
+Gui, 1:Add, Checkbox, x500 y350 w110 h30 +0x10 vblnDisplayReport, &Display load report
+Gui, 1:Font, s9 w700, Arial
+Gui, 1:Add, Button, x500 y390 w100 h20 gGui1Save, &Close
+Gui, 1:Font, s9 w400, Arial
+; Generated using SmartGuiXP Creator mod 4.3.29.0
+return
+; ------------------------------------------------
+
+
+
+; ------------------------------------------------
+Gui1Load:
+; ------------------------------------------------
+for intIndex, strRequest in arrPopupHotkeysRequests
+{
+	StringSplit arrRequest, strRequest, |
+	LV_Add(""
+		, Trim(arrRequest1) ; Name
+		, Trim(arrRequest2) ; Hotkey
+		, Trim(arrRequest9) ; Remark
+		, Trim(arrRequest5) <> "1" ? "No" : "Yes") ; Preload
+}
+
+GuiControl, , blnDisplayReport, %blnDisplayReport%
+GuiControl, , strPopupHotkeysSettingsHotkey, %strPopupHotkeysSettingsHotkey%
+Loop, 4
+	LV_ModifyCol(A_Index, "AutoHdr")
 return
 ; ------------------------------------------------
 
@@ -273,6 +331,10 @@ return
 
 
 
+; ================================================
+; POPUP HOTKEYS PERSISTENT COMMANDS
+; ================================================
+
 ; ------------------------------------------------
 PopupHotkey:
 ; ------------------------------------------------
@@ -293,7 +355,7 @@ strWindowID := arrObjPopupHotkeys[strPopKeyLabel].KeyWindowID
 DetectHiddenWindows, Off
 IfWinActive, %strWindowID%
 	; hotkey program window is active and is visible, so hide it, reset previous window (if known) and exit
-	Gosub, HideWindowID
+	Gosub, HideWindow
 else
 {
 	DetectHiddenWindows, On
@@ -320,7 +382,7 @@ return
 
 
 ; ------------------------------------------------
-HideWindowID:
+HideWindow:
 ; ------------------------------------------------
 WinHide, %strWindowID%
 MouseGetPos, , , strWinMouseId
@@ -379,7 +441,74 @@ return
 
 
 ; ------------------------------------------------
-ListAllWindow:
+ShowAllAndExit:
+; ------------------------------------------------
+Gosub, Gui1ShowAll
+ExitApp ; Remove all hotkeys and terminates this persistent script
+; ------------------------------------------------
+
+
+
+; ================================================
+; POPUP HOTKEYS GUI1 COMMANDS
+; ================================================
+
+; ------------------------------------------------
+Gui1Show:
+; ------------------------------------------------
+Gui, 1:Show, Center w610 h420, PopupHotkeys v2
+return
+; ------------------------------------------------
+
+
+
+; ------------------------------------------------
+Gui1Help:
+; ------------------------------------------------
+; ###
+return
+; ------------------------------------------------
+
+
+; ------------------------------------------------
+Gui1MoveUp:
+; ------------------------------------------------
+return
+; ------------------------------------------------
+
+
+; ------------------------------------------------
+Gui1MoveDown:
+; ------------------------------------------------
+return
+; ------------------------------------------------
+
+
+; ------------------------------------------------
+Gui1Add:
+; ------------------------------------------------
+return
+; ------------------------------------------------
+
+
+; ------------------------------------------------
+Gui1Edit:
+; ------------------------------------------------
+return
+; ------------------------------------------------
+
+
+
+; ------------------------------------------------
+Gui1Remove:
+; ------------------------------------------------
+return
+; ------------------------------------------------
+
+
+
+; ------------------------------------------------
+Gui1List:
 ; ------------------------------------------------
 strList := ""
 for intIndexNotUsed, objPopupHotkey in arrObjPopupHotkeys
@@ -395,16 +524,7 @@ return
 
 
 ; ------------------------------------------------
-ShowAllWindowAndExit:
-; ------------------------------------------------
-gosub, ShowAllWindow
-ExitApp ; Terminates this persistent script unconditionally
-; ------------------------------------------------
-
-
-
-; ------------------------------------------------
-ShowAllWindow:
+Gui1ShowAll:
 ; ------------------------------------------------
 for intIndexNotUsed, objPopupHotkey in arrObjPopupHotkeys
 {
@@ -418,7 +538,7 @@ return
 
 
 ; ------------------------------------------------
-HideAllWindow:
+Gui1HideAll:
 ; ------------------------------------------------
 for intIndexNotUsed, objPopupHotkey in arrObjPopupHotkeys
 {
@@ -431,7 +551,7 @@ return
 
 
 ; ------------------------------------------------
-TerminateAllWindow:
+Gui1TerminateAll:
 ; ------------------------------------------------
 for intIndexNotUsed, objPopupHotkey in arrObjPopupHotkeys
 {
@@ -448,66 +568,13 @@ return
 
 
 ; ------------------------------------------------
-Gui1Build:
+GuiClose:
 ; ------------------------------------------------
-Gui, -MaximizeBox +Theme -ToolWindow
-Gui, 1:Font, s12 w700, Verdana
-Gui, 1:Add, Text, x10 y10 w490 h30, Popup Hotkeys v2
-Gui, 1:Font, s8 w400, Verdana
-Gui, 1:Add, Text, x10 y30 w490 h30, Popup Hotkeys v2
-Gui, 1:Add, ListView, x10 y70 w480 h340 lvHotkeys, Name|Hotkey|Remark|Load
-Gui, 1:Add, Button, x500 y70 w100 h20, &Add...
-Gui, 1:Add, Button, x500 y100 w100 h20, &Edit...
-Gui, 1:Add, Button, x500 y130 w100 h20, &Remove...
-Gui, 1:Add, Button, x500 y170 w100 h20, &List Hotkeys...
-Gui, 1:Add, Button, x500 y200 w100 h20, &Show All
-Gui, 1:Add, Button, x500 y230 w100 h20, &Hide All
-Gui, 1:Add, Button, x500 y260 w100 h20, &Terminate All
-Gui, 1:Font, s9 w700, Verdana
-Gui, 1:Add, Text, x500 y290 w100 h20, Options
-Gui, 1:Font, s8 w400, Arial
-Gui, 1:Add, Text, x500 y310 w100 h20, Settings Hot&key
-Gui, 1:Add, Hotkey, x500 y325 w100 h30 limit131 vstrPopupHotkeysSettingsHotkey, %strPopupHotkeysSettingsHotkey%
-; limit131 = 1: Prevent unmodified keys + 2: Prevent Shift-only keys + 128: Prevent Shift-Control-Alt keys
-Gui, 1:Add, Checkbox, x500 y350 w110 h30 +0x10 vblnDisplayReport, &Display load report
-Gui, 1:Font, s9 w700, Arial
-Gui, 1:Add, Button, x500 y390 w100 h20 gGui1Save, &Close
-Gui, 1:Font, s9 w400, Arial
-; Generated using SmartGuiXP Creator mod 4.3.29.0
+if (blnSomethingToSave)
+	Gosub, Gui1Save
+Gui, Cancel
 return
 ; ------------------------------------------------
-
-
-
-; ------------------------------------------------
-Gui1Load:
-; ------------------------------------------------
-for intIndex, strRequest in arrPopupHotkeysRequests
-{
-	StringSplit arrRequest, strRequest, |
-	LV_Add(""
-		, Trim(arrRequest1) ; Name
-		, Trim(arrRequest2) ; Hotkey
-		, Trim(arrRequest9) ; Remark
-		, Trim(arrRequest5) <> "1" ? "No" : "Yes") ; Preload
-}
-
-GuiControl, , blnDisplayReport, %blnDisplayReport%
-GuiControl, , strPopupHotkeysSettingsHotkey, %strPopupHotkeysSettingsHotkey%
-Loop, 4
-	LV_ModifyCol(A_Index, "AutoHdr")
-return
-; ------------------------------------------------
-
-
-
-; ------------------------------------------------
-Gui1Show:
-; ------------------------------------------------
-Gui, 1:Show, Center w610 h420, PopupHotkeys v2
-return
-; ------------------------------------------------
-
 
 
 ; ------------------------------------------------
@@ -536,8 +603,8 @@ Loop, % LV_GetCount("")
 		. " | " . arrObjPopupHotkeys[strPopKeyLabel].KeyStartup		; 7
 		. " | " . arrObjPopupHotkeys[strPopKeyLabel].LaunchDelay	; 9
 		. " | " . arrObjPopupHotkeys[strPopKeyLabel].KeyRemark		; 9
+	IniWrite, %strKeyIni%, %strIniFileName%, Keys, Key%A_Index%
 }
-; ### Save strKeyIni to ini
 if (strPopupHotkeysSettingsHotkey <> strPrevSettingsHotkey)
 {
 	Hotkey, %strPopupHotkeysSettingsHotkey%, Gui1Show, UseErrorLevel
@@ -555,18 +622,10 @@ if (strPopupHotkeysSettingsHotkey <> strPrevSettingsHotkey)
 	}
 }
 IniWrite, %blnDisplayReport%, %strIniFileName%, Global, DisplayLoadReport
-Gui, Cancel
 return
 ; ------------------------------------------------
 
 
-
-; ------------------------------------------------
-GuiClose:
-; ------------------------------------------------
-Gosub, Gui1Save
-return
-; ------------------------------------------------
 
 
 ; ================================================
@@ -595,7 +654,5 @@ GetPopHotkeyLabel(strKey)
 	return strResult
 }
 ; ------------------------------------------------
-
-
 
 
