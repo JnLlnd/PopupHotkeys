@@ -85,7 +85,7 @@ LoadIni:
 	; Piece of code for developement phase only
 	if (A_ComputerName = "JEAN-PC") ; my personal hotkeys
 		strIniFileName := "PopupHotkeys-MAISON.ini"
-	else if (A_ComputerName = "STIC") ; my work hotkeys
+	else if InStr(A_ComputerName, "STIC") ; my work hotkeys
 		strIniFileName := "PopupHotkeys-STIC.ini"
 	else ; for other users
 	; / Piece of code for developement phase only
@@ -164,7 +164,7 @@ for intIndexNotUsed, strRequest in arrPopupHotkeysRequests
 	strExecPath := Trim(arrRequest3)
 	strWorkDir := Trim(arrRequest4)
 	blnPreload := Trim(arrRequest5) = "1"
-	strAhkIdentifier := Trim(arrRequest6)
+	strIniWinId := Trim(arrRequest6)
 	strStartupScript := Trim(arrRequest7)
 	intLaunchDelay := Trim(arrRequest8)
 	if intLaunchDelay is not integer ; no ( ) for this if, it is not an expression
@@ -178,23 +178,24 @@ for intIndexNotUsed, strRequest in arrPopupHotkeysRequests
 	if (blnPreload)
 		Gosub, RunExecPathOnLoad
 	else
-		if (strAhkIdentifier)
-			strWindowID := strAhkIdentifier ; we use the user defined window identifier
+		if (strIniWinId)
+			strWindowID := strIniWinId ; we use the user defined window identifier
 		else
 			strWindowID := "ahk_pid 9999999"
 			; the program was not preloaded, so we don't have a pid - create a dummy pid that will be replaced when
 			; hotkey is pressed (no process should have id 9999999)
-
 	strPopKeyLabel := GetPopHotkeyLabel(strKey)
-	arrObjPopupHotkeys[strPopKeyLabel] := Object("KeyName", strName
-												, "KeyLabel", strPopKeyLabel
-												, "KeyHotkey", strKey
-												, "KeyExecPath", strExecPath
-												, "KeyWorkDir", strWorkDir
-												, "KeyWindowID", strWindowID
-												, "KeyStartup", strStartupScript
-												, "LaunchDelay", intLaunchDelay
-												, "KeyRemark", strRemark)
+	arrObjPopupHotkeys[strPopKeyLabel] := Object("KeyLabel", strPopKeyLabel			; 0
+												, "KeyName", strName				; 1
+												, "KeyHotkey", strKey				; 2
+												, "KeyExecPath", strExecPath		; 3
+												, "KeyWorkDir", strWorkDir			; 4
+												, "Preload", blnPreload				; 5
+												, "KeyIniWinID", strIniWinId		; 6
+												, "KeyStartup", strStartupScript	; 7
+												, "LaunchDelay", intLaunchDelay		; 8
+												, "KeyRemark", strRemark			; 9
+												, "KeyWindowID", strWindowID)		; 10
 	Hotkey, %strKey%, PopupHotkey, UseErrorLevel ; http://www.autohotkey.com/docs/commands/Hotkey.htm
 	if (errorLevel)
 		strThisKeyReport := strThisKeyReport . "ERROR: " . arrHotkeyErrors[errorLevel] "`n"
@@ -241,8 +242,8 @@ if (ErrorLevel = "ERROR")
 		. A_LastError . ")`n"
 else
 {
-	if (strAhkIdentifier)
-		strWindowID := strAhkIdentifier ; we use the user defined window identifier
+	if (strIniWinId)
+		strWindowID := strIniWinId ; we use the user defined window identifier
 	else
 		strWindowID := "ahk_pid " . intExecPID ;  we use the pid
 	DetectHiddenWindows, On
@@ -285,9 +286,10 @@ PopupHotkey:
 ; 4) Finaly, if the executable associated with this hotkey does not exist, it is loaded and
 ;    the startup script (if present) is executed.
 Critical ; Prevents the current thread from being interrupted by other threads.
-strKeyName := GetPopHotkeyLabel(A_ThisHotkey)
+strPopKeyLabel := GetPopHotkeyLabel(A_ThisHotkey)
+strWindowID := arrObjPopupHotkeys[strPopKeyLabel].KeyWindowID
+
 ; Identification of the window associated with this hotkey (for example: "akh_pid 123" or "akh_class iTunes")
-strWindowID := arrObjPopupHotkeys[strKeyName].KeyWindowID
 DetectHiddenWindows, Off
 IfWinActive, %strWindowID%
 	; hotkey program window is active and is visible, so hide it, reset previous window (if known) and exit
@@ -337,20 +339,20 @@ return
 ; ------------------------------------------------
 RunExecPathAfterLoad:
 ; ------------------------------------------------
-strExecPath := arrObjPopupHotkeys[strKeyName].KeyExecPath
-strWorkDir := arrObjPopupHotkeys[strKeyName].KeyWorkDir
-strStartupScript := arrObjPopupHotkeys[strKeyName].KeyStartup
-intLaunchDelay := arrObjPopupHotkeys[strKeyName].LaunchDelay
+strExecPath := arrObjPopupHotkeys[strPopKeyLabel].KeyExecPath
+strWorkDir := arrObjPopupHotkeys[strPopKeyLabel].KeyWorkDir
+strStartupScript := arrObjPopupHotkeys[strPopKeyLabel].KeyStartup
+intLaunchDelay := arrObjPopupHotkeys[strPopKeyLabel].LaunchDelay
 Run, %strExecPath%, %strWorkDir%, UseErrorLevel, intExecPID
 if (ErrorLevel = "ERROR")
 	MsgBox, 16, Popup Hotkeys, ERROR: Could not launch %strExecPath%
 else
 {
-	if (arrObjPopupHotkeys[strKeyName].KeyWindowID = "")
-		or (InStr(arrObjPopupHotkeys[strKeyName].KeyWindowID, "ahk_pid"))
+	if (arrObjPopupHotkeys[strPopKeyLabel].KeyWindowID = "")
+		or (InStr(arrObjPopupHotkeys[strPopKeyLabel].KeyWindowID, "ahk_pid"))
 		; save or update the new pid in the array associated to this hotkey
-		arrObjPopupHotkeys[strKeyName].KeyWindowID := "ahk_pid " . intExecPID
-	strWindowID := arrObjPopupHotkeys[strKeyName].KeyWindowID
+		arrObjPopupHotkeys[strPopKeyLabel].KeyWindowID := "ahk_pid " . intExecPID
+	strWindowID := arrObjPopupHotkeys[strPopKeyLabel].KeyWindowID
 	DetectHiddenWindows, On
 	WinWait, %strWindowID%, , %intLaunchDelay%
 	if errorlevel
@@ -445,6 +447,128 @@ return
 
 
 
+; ------------------------------------------------
+Gui1Build:
+; ------------------------------------------------
+Gui, -MaximizeBox +Theme -ToolWindow
+Gui, 1:Font, s12 w700, Verdana
+Gui, 1:Add, Text, x10 y10 w490 h30, Popup Hotkeys v2
+Gui, 1:Font, s8 w400, Verdana
+Gui, 1:Add, Text, x10 y30 w490 h30, Popup Hotkeys v2
+Gui, 1:Add, ListView, x10 y70 w480 h340 lvHotkeys, Name|Hotkey|Remark|Load
+Gui, 1:Add, Button, x500 y70 w100 h20, &Add...
+Gui, 1:Add, Button, x500 y100 w100 h20, &Edit...
+Gui, 1:Add, Button, x500 y130 w100 h20, &Remove...
+Gui, 1:Add, Button, x500 y170 w100 h20, &List Hotkeys...
+Gui, 1:Add, Button, x500 y200 w100 h20, &Show All
+Gui, 1:Add, Button, x500 y230 w100 h20, &Hide All
+Gui, 1:Add, Button, x500 y260 w100 h20, &Terminate All
+Gui, 1:Font, s9 w700, Verdana
+Gui, 1:Add, Text, x500 y290 w100 h20, Options
+Gui, 1:Font, s8 w400, Arial
+Gui, 1:Add, Text, x500 y310 w100 h20, Settings Hot&key
+Gui, 1:Add, Hotkey, x500 y325 w100 h30 limit131 vstrPopupHotkeysSettingsHotkey, %strPopupHotkeysSettingsHotkey%
+; limit131 = 1: Prevent unmodified keys + 2: Prevent Shift-only keys + 128: Prevent Shift-Control-Alt keys
+Gui, 1:Add, Checkbox, x500 y350 w110 h30 +0x10 vblnDisplayReport, &Display load report
+Gui, 1:Font, s9 w700, Arial
+Gui, 1:Add, Button, x500 y390 w100 h20 gGui1Save, &Close
+Gui, 1:Font, s9 w400, Arial
+; Generated using SmartGuiXP Creator mod 4.3.29.0
+return
+; ------------------------------------------------
+
+
+
+; ------------------------------------------------
+Gui1Load:
+; ------------------------------------------------
+for intIndex, strRequest in arrPopupHotkeysRequests
+{
+	StringSplit arrRequest, strRequest, |
+	LV_Add(""
+		, Trim(arrRequest1) ; Name
+		, Trim(arrRequest2) ; Hotkey
+		, Trim(arrRequest9) ; Remark
+		, Trim(arrRequest5) <> "1" ? "No" : "Yes") ; Preload
+}
+
+GuiControl, , blnDisplayReport, %blnDisplayReport%
+GuiControl, , strPopupHotkeysSettingsHotkey, %strPopupHotkeysSettingsHotkey%
+Loop, 4
+	LV_ModifyCol(A_Index, "AutoHdr")
+return
+; ------------------------------------------------
+
+
+
+; ------------------------------------------------
+Gui1Show:
+; ------------------------------------------------
+Gui, 1:Show, Center w610 h420, PopupHotkeys v2
+return
+; ------------------------------------------------
+
+
+
+; ------------------------------------------------
+Gui1Save:
+; ------------------------------------------------
+MsgBox, 8195, PopupHotkeys v2 - Close, Saves changes to settings file?
+IfMsgBox, Cancel
+	return
+IfMsgBox, No
+{
+	Gui, Cancel
+	return
+}
+strPrevSettingsHotkey := strPopupHotkeysSettingsHotkey
+Gui, 1:Submit, NoHide
+Loop, % LV_GetCount("")
+{
+	LV_GetText(strKey, A_Index , 2)
+	strPopKeyLabel := GetPopHotkeyLabel(strKey)
+	strKeyIni := arrObjPopupHotkeys[strPopKeyLabel].KeyName			; 1
+		. " | " . arrObjPopupHotkeys[strPopKeyLabel].KeyHotkey		; 2
+		. " | " . arrObjPopupHotkeys[strPopKeyLabel].KeyExecPath	; 3
+		. " | " . arrObjPopupHotkeys[strPopKeyLabel].KeyWorkDir		; 4
+		. " | " . arrObjPopupHotkeys[strPopKeyLabel].Preload		; 5
+		. " | " . arrObjPopupHotkeys[strPopKeyLabel].KeyIniWinID	; 6
+		. " | " . arrObjPopupHotkeys[strPopKeyLabel].KeyStartup		; 7
+		. " | " . arrObjPopupHotkeys[strPopKeyLabel].LaunchDelay	; 9
+		. " | " . arrObjPopupHotkeys[strPopKeyLabel].KeyRemark		; 9
+}
+; ### Save strKeyIni to ini
+if (strPopupHotkeysSettingsHotkey <> strPrevSettingsHotkey)
+{
+	Hotkey, %strPopupHotkeysSettingsHotkey%, Gui1Show, UseErrorLevel
+	; http://www.autohotkey.com/docs/commands/Hotkey.htm
+	if (errorLevel)
+	{
+		strPopupHotkeysSettingsHotkey := strPrevSettingsHotkey
+		Hotkey, %strPopupHotkeysSettingsHotkey%, Gui1Show
+		MsgBox, 48, "ERROR: " . arrHotkeyErrors[errorLevel]
+	}
+	else
+	{
+		IniWrite, %strPopupHotkeysSettingsHotkey%, %strIniFileName%, Global, PopupHotkeysSettingsHotkey
+		Hotkey, %strPrevSettingsHotkey%, Off
+	}
+}
+IniWrite, %blnDisplayReport%, %strIniFileName%, Global, DisplayLoadReport
+Gui, Cancel
+return
+; ------------------------------------------------
+
+
+
+; ------------------------------------------------
+GuiClose:
+; ------------------------------------------------
+Gosub, Gui1Save
+return
+; ------------------------------------------------
+
+
 ; ================================================
 ; POPUP HOTKEYS FUNCTIONS
 ; ================================================
@@ -475,99 +599,3 @@ GetPopHotkeyLabel(strKey)
 
 
 
-; ------------------------------------------------
-Gui1Build:
-; ------------------------------------------------
-Gui, -MaximizeBox +Theme -ToolWindow
-Gui, 1:Font, s12 w700, Verdana
-Gui, 1:Add, Text, x10 y10 w490 h30, Popup Hotkeys v2
-Gui, 1:Font, s8 w400, Verdana
-Gui, 1:Add, Text, x10 y30 w490 h30, Popup Hotkeys v2
-Gui, 1:Add, ListView, x10 y70 w480 h340 +0x10 lvHotkeys, Name|Hotkey|Remark|Load ; ### make it blod
-Gui, 1:Add, Button, x500 y70 w100 h20, &Add...
-Gui, 1:Add, Button, x500 y100 w100 h20, &Edit...
-Gui, 1:Add, Button, x500 y130 w100 h20, &Remove...
-Gui, 1:Add, Button, x500 y170 w100 h20, &List Hotkeys...
-Gui, 1:Add, Button, x500 y200 w100 h20, &Show All
-Gui, 1:Add, Button, x500 y230 w100 h20, &Hide All
-Gui, 1:Add, Button, x500 y260 w100 h20, &Terminate All
-Gui, 1:Font, s9 w700, Verdana
-Gui, 1:Add, Text, x500 y290 w100 h20, Options
-Gui, 1:Font, s8 w400, Arial
-Gui, 1:Add, Checkbox, x500 y305 w110 h30 +0x10 vblnDisplayReport, &Display load report
-Gui, 1:Add, Text, x500 y335 w100 h20, Settings Hot&key
-Gui, 1:Add, Hotkey, x500 y350 w100 h30 limit131 vstrPopupHotkeysSettingsHotkey, %strPopupHotkeysSettingsHotkey%
-; limit131 = 1: Prevent unmodified keys + 2: Prevent Shift-only keys + 128: Prevent Shift-Control-Alt keys
-Gui, 1:Font, s9 w700, Arial
-Gui, 1:Add, Button, x500 y390 w100 h20 gGui1Save, &Close
-Gui, 1:Font, s9 w400, Arial
-; Generated using SmartGuiXP Creator mod 4.3.29.0
-return
-; ------------------------------------------------
-
-
-
-; ------------------------------------------------
-Gui1Show:
-; ------------------------------------------------
-Gui, 1:Show, Center w610 h420, PopupHotkeys v2
-return
-; ------------------------------------------------
-
-
-
-; ------------------------------------------------
-Gui1Save:
-; ------------------------------------------------
-; ### CONFIRM BEFORE SAVING
-strPrevSettingsHotkey := strPopupHotkeysSettingsHotkey
-Gui, 1:Submit, NoHide
-if (strPopupHotkeysSettingsHotkey <> strPrevSettingsHotkey)
-{
-	Hotkey, %strPopupHotkeysSettingsHotkey%, Gui1Show, UseErrorLevel
-	; http://www.autohotkey.com/docs/commands/Hotkey.htm
-	if (errorLevel)
-	{
-		strPopupHotkeysSettingsHotkey := strPrevSettingsHotkey
-		Hotkey, %strPopupHotkeysSettingsHotkey%, Gui1Show
-		MsgBox, 48, "ERROR: " . arrHotkeyErrors[errorLevel]
-	}
-	else
-	{
-		IniWrite, %strPopupHotkeysSettingsHotkey%, %strIniFileName%, Global, PopupHotkeysSettingsHotkey
-		Hotkey, %strPrevSettingsHotkey%, Off
-	}
-}
-Gui, Cancel
-return
-; ------------------------------------------------
-
-
-
-; ------------------------------------------------
-GuiClose:
-; ------------------------------------------------
-Gosub, Gui1Save
-return
-; ------------------------------------------------
-
-
-; ------------------------------------------------
-Gui1Load:
-; ------------------------------------------------
-for intIndex, strRequest in arrPopupHotkeysRequests
-{
-	StringSplit arrRequest, strRequest, |
-	LV_Add(""
-		, Trim(arrRequest1) ; Name
-		, Trim(arrRequest2) ; Hotkey
-		, Trim(arrRequest9) ; Remark
-		, Trim(arrRequest5) <> "1" ? "No" : "Yes") ; Preload
-}
-
-GuiControl, , blnDisplayReport, %blnDisplayReport%
-GuiControl, , strPopupHotkeysSettingsHotkey, %strPopupHotkeysSettingsHotkey%
-Loop, 4
-	LV_ModifyCol(A_Index, "AutoHdr")
-return
-; ------------------------------------------------
