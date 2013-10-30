@@ -27,6 +27,7 @@ By JnLlnd on AHK forum
 #Persistent ; Keeps a script permanently running
 #NoEnv ; Recommended for performance and compatibility with future AutoHotkey releases
 #SingleInstance force ; Skips the dialog box and replaces the old instance automatically
+#Include %A_ScriptDir%\PopupHotkeys_LANG.ahk
 
 ; --- OBJECTS AND ARRAYS VARIABLES ---
 
@@ -41,7 +42,12 @@ Gosub, Gui1Build
 Gosub, Gui1Load
 
 Hotkey, %strPopupHotkeysSettingsHotkey%, Gui1Show
-
+Hotkey, IfWinActive, PopupHotkeys ahk_class AutoHotkeyGUI ; Check the class name when compiled?
+Hotkey, Esc, GuiClose
+Hotkey, F1, Gui1Help
+Hotkey, ^Up, Gui1MoveUp
+Hotkey, ^Down, Gui1MoveDown
+Hotkey, IfWinActive
 
 ; The following commands will create the requested hotkeys display a result report
 ; if the CreatePopupHotkeys parameter is "true".
@@ -153,12 +159,12 @@ Gui, 1:Add, Text, x10 y10 w490 h30, Popup Hotkeys v2
 Gui, 1:Font, s8 w400, Verdana
 Gui, 1:Add, Text, x10 y30 w490 h30, Popup Hotkeys v2
 Gui, 1:Add, Picture, x4 y75 w16 h-1 gGui1Help, %A_ScriptDir%\ico\Visualpharm-Icons8-Metro-Style-System-Help.ico
-Gui, 1:Add, Picture, x4 y100 w16 h-1 gGui1MoveUp, %A_ScriptDir%\ico\Visualpharm-Icons8-Metro-Style-Arrows-Up.ico
-Gui, 1:Add, Picture, x4  y120 w16 h-1 gGui1MoveDown, %A_ScriptDir%\ico\Visualpharm-Icons8-Metro-Style-Arrows-Down.ico
-Gui, 1:Add, ListView, x25 y70 w460 h340 lvHotkeys, Name|Hotkey|Remark|Load
+Gui, 1:Add, Picture, x4 y100 w16 h-1 vpicMoveUp gGui1MoveUp, %A_ScriptDir%\ico\Arrows-Up-icon-16.png
+Gui, 1:Add, Picture, x4  y120 w16 h-1 vpicMoveDown gGui1MoveDown, %A_ScriptDir%\ico\Arrows-Down-icon-16.png
+Gui, 1:Add, ListView, x25 y70 w460 h340 AltSubmit vlvHotkeys gLvHokeysEvents, Name|Hotkey|Remark|Load
 Gui, 1:Add, Button, x500 y70 w100 h20 gGui1Add, &Add...
 Gui, 1:Add, Button, x500 y100 w100 h20 gGui1Edit, &Edit...
-Gui, 1:Add, Button, x500 y130 w100 h20 gGui1Remove, &Remove...
+Gui, 1:Add, Button, x500 y130 w100 h20 gGui1Delete, &Delete...
 Gui, 1:Add, Button, x500 y170 w100 h20 gGui1List, &List Hotkeys...
 Gui, 1:Add, Button, x500 y200 w100 h20 gGui1ShowAll, &Show All
 Gui, 1:Add, Button, x500 y230 w100 h20 gGui1HideAll, &Hide All
@@ -171,7 +177,7 @@ Gui, 1:Add, Hotkey, x500 y325 w100 h30 limit131 vstrPopupHotkeysSettingsHotkey, 
 ; limit131 = 1: Prevent unmodified keys + 2: Prevent Shift-only keys + 128: Prevent Shift-Control-Alt keys
 Gui, 1:Add, Checkbox, x500 y350 w110 h30 +0x10 vblnDisplayReport, &Display load report
 Gui, 1:Font, s9 w700, Arial
-Gui, 1:Add, Button, x500 y390 w100 h20 gGui1Save, &Close
+Gui, 1:Add, Button, x500 y390 w100 h20 gGuiClose, &Close
 Gui, 1:Font, s9 w400, Arial
 ; Generated using SmartGuiXP Creator mod 4.3.29.0
 return
@@ -457,22 +463,62 @@ ExitApp ; Remove all hotkeys and terminates this persistent script
 Gui1Show:
 ; ------------------------------------------------
 Gui, 1:Show, Center w610 h420, PopupHotkeys v2
+GuiControl, Focus, lvHotkeys
+LV_Modify(1, "Focus")
+LV_Modify(0, "-Select")
+LV_Modify(1, "Select")
+Gosub, Gui1UpdateButtons
+blnSomethingToSave := False
 return
 ; ------------------------------------------------
 
+
+
+; ------------------------------------------------
+Gui1UpdateButtons:
+; ------------------------------------------------
+intNbOfRows := LV_GetCount()
+intSelectedRow := LV_GetNext(0, "Focused")
+; if !(intSelectedRow)
+;	intSelectedRow := 1
+LV_Modify(intSelectedRow, "Select")
+GuiControl % (intNbOfRows = 0) ? "Disable" : "Enable", &Remove
+GuiControl, , picMoveUp, % A_ScriptDir . "\ico\Arrows-Up-icon-16" . (intSelectedRow <= 1 ? "-grey.png" : ".png")
+GuiControl, , picMoveDown, % A_ScriptDir . "\ico\Arrows-Down-icon-16" . (intSelectedRow = intNbOfRows ? "-grey.png" : ".png")
+return
+; ------------------------------------------------
 
 
 ; ------------------------------------------------
 Gui1Help:
 ; ------------------------------------------------
-; ###
+Help("Help`n`nArrow (^Up/^Down) to change load order`n`nAdd, Edit, Delete`n`nList Hotkeys, Show All, Hide All, Terminate All`n`nOptions Setting Hotkey, Display load report`n`nClose (Esc)")
 return
 ; ------------------------------------------------
+
 
 
 ; ------------------------------------------------
 Gui1MoveUp:
 ; ------------------------------------------------
+intSelectedRow := LV_GetNext()
+if (intSelectedRow <= 1)
+	return
+LV_Modify(0, "-Select")
+
+LV_GetText(strThisName, intSelectedRow, 1)
+LV_GetText(strThisHotkey, intSelectedRow, 2)
+LV_GetText(strThisRemark, intSelectedRow, 3)
+LV_GetText(strThisPreload, intSelectedRow, 4)
+
+LV_GetText(strPrevName, intSelectedRow - 1, 1)
+LV_GetText(strPrevHotkey, intSelectedRow - 1, 2)
+LV_GetText(strPrevRemark, intSelectedRow - 1, 3)
+LV_GetText(strPrevPreload, intSelectedRow - 1, 4)
+
+LV_Modify(intSelectedRow, "", strPrevName, strPrevHotkey, strPrevRemark, strPrevPreload)
+LV_Modify(intSelectedRow - 1, "Focus Select", strThisName, strThisHotkey, strThisRemark, strThisPreload)
+blnSomethingToSave := True
 return
 ; ------------------------------------------------
 
@@ -480,6 +526,25 @@ return
 ; ------------------------------------------------
 Gui1MoveDown:
 ; ------------------------------------------------
+intNbOfRows := LV_GetCount()
+intSelectedRow := LV_GetNext()
+if (intSelectedRow = intNbOfRows)
+	return
+LV_Modify(0, "-Select")
+
+LV_GetText(strThisName, intSelectedRow, 1)
+LV_GetText(strThisHotkey, intSelectedRow, 2)
+LV_GetText(strThisRemark, intSelectedRow, 2)
+LV_GetText(strThisPreload, intSelectedRow, 2)
+
+LV_GetText(strNextName, intSelectedRow + 1, 1)
+LV_GetText(strNextHotkey, intSelectedRow + 1, 2)
+LV_GetText(strNextRemark, intSelectedRow + 1, 2)
+LV_GetText(strNextPreload, intSelectedRow + 1, 2)
+
+LV_Modify(intSelectedRow, "", strNextName, strNextHotkey, strNextRemark, strNextPreload)
+LV_Modify(intSelectedRow + 1, "Focus Select", strThisName, strThisHotkey, strThisRemark, strThisPreload)
+blnSomethingToSave := True
 return
 ; ------------------------------------------------
 
@@ -500,7 +565,7 @@ return
 
 
 ; ------------------------------------------------
-Gui1Remove:
+Gui1Delete:
 ; ------------------------------------------------
 return
 ; ------------------------------------------------
@@ -629,6 +694,53 @@ return
 
 
 ; ================================================
+; LISTVIEW HOTKEYS EVENTS
+; ================================================
+
+
+; ------------------------------------------------
+LvHokeysEvents:
+; ------------------------------------------------
+Gosub, Gui1UpdateButtons
+; ###
+/*
+if (A_GuiEvent = "DoubleClick")
+{
+	intRowNumber := A_EventInfo
+	Gosub, MenuEditRow
+}
+SB_SetText(L(lLvEventsrecordsselected, LV_GetCount("Selected")), 2)
+*/
+return
+; ------------------------------------------------
+
+
+
+; ------------------------------------------------
+GuiContextMenu: ; Launched in response to a right-click or press of the Apps key.
+; ------------------------------------------------
+; ###
+/*
+if A_GuiControl <> lvData  ; Display the menu only for clicks inside the ListView.
+    return
+if !LV_GetCount("")
+	return
+intRowNumber := A_EventInfo
+Menu, SelectMenu, Add, % L(lLvEventsSelectAll), MenuSelectAll
+Menu, SelectMenu, Add, % L(lLvEventsDeselectAll), MenuSelectNone
+Menu, SelectMenu, Add, % L(lLvEventsReverseSelection), MenuSelectReverse
+Menu, SelectMenu, Add, % L(lLvEventsEditrowMenu), MenuEditRow
+Menu, SelectMenu, Add, % L(lLvEventsDeleteRowMenu), MenuDeleteRow
+; Show the menu at the provided coordinates, A_GuiX and A_GuiY.  These should be used
+; because they provide correct coordinates even if the user pressed the Apps key:
+Menu, SelectMenu, Show, %A_GuiX%, %A_GuiY%
+*/
+return
+; ------------------------------------------------
+
+
+
+; ================================================
 ; POPUP HOTKEYS FUNCTIONS
 ; ================================================
 
@@ -655,4 +767,44 @@ GetPopHotkeyLabel(strKey)
 }
 ; ------------------------------------------------
 
+
+
+; ------------------------------------------------
+Help(strMessage, objVariables*)
+; ------------------------------------------------
+{
+	Gui, 1:+OwnDialogs 
+	StringLeft, strTitle, strMessage, % InStr(strMessage, "$") - 1
+	StringReplace, strMessage, strMessage, %strTitle%$
+	MsgBox, 0, % L(lFuncHelpTitle, lAppName, lAppVersionLong, strTitle), % L(strMessage, objVariables*)
+}
+; ------------------------------------------------
+
+
+
+; ------------------------------------------------
+Oops(strMessage, objVariables*)
+; ------------------------------------------------
+{
+	Gui, 1:+OwnDialogs
+	MsgBox, 48, % L(lFuncOopsTitle, lAppName, lAppVersionLong), % L(strMessage, objVariables*)
+}
+; ------------------------------------------------
+
+
+
+; ------------------------------------------------
+L(strMessage, objVariables*)
+; ------------------------------------------------
+{
+	Loop
+	{
+		if InStr(strMessage, "~" . A_Index . "~")
+			StringReplace, strMessage, strMessage, ~%A_Index%~, % objVariables[A_Index]
+ 		else
+			break
+	}
+	return strMessage
+}
+; ------------------------------------------------
 
